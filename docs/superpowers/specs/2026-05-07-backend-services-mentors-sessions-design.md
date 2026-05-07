@@ -1,16 +1,17 @@
-# Design: adviz-mentors-ms + adviz-sessions-ms
+# Design: adviz-mentors-ms + adviz-sessions-ms + adviz-payments-ms
 
 **Date:** 2026-05-07
 **Scope:** MVP backend services for the Adviz mentorship marketplace
-**Approach:** Option B — model-first across both services, then endpoints sequentially
+**Approach:** Option B — model-first across all services, then endpoints sequentially
 
 ---
 
 ## Phase overview
 
-1. **Scope rename + model-first** — rename all venue/booking scopes in `users-ms`, create both service directories, write all Tortoise models, run migrations, upgrade Tortoise to `>=1.1.7`
+1. **Scope rename + model-first** — rename all venue/booking scopes in `users-ms`, create all three service directories, write all Tortoise models, run migrations, upgrade Tortoise to `>=1.1.7`
 2. **mentors-ms endpoints + tests** — full MVP endpoint impl, 60% coverage minimum
 3. **sessions-ms endpoints + tests** — full MVP endpoint impl, 60% coverage minimum
+4. **payments-ms endpoints + tests** — full MVP endpoint impl, 60% coverage minimum
 
 ---
 
@@ -524,6 +525,171 @@ Run: `pytest --cov=app --cov-fail-under=60`
 
 ---
 
+---
+
+## Phase 4: payments-ms
+
+### Stripe Connect strategy
+
+**Express accounts** — Stripe handles KYC and onboarding entirely via Account Links. Platform controls payout timing and fee split. Mentors get a limited Express Dashboard (balance + payouts only). Destination charges with `application_fee_amount` enforce the fee split at charge time.
+
+**Funds flow:** full charge amount routes to mentor's Express account → `application_fee_amount` transferred back to platform → Stripe fees deducted from platform balance.
+
+**Payout timing:** Stripe automatic payouts on the Express account's default schedule (MVP). Manual batch payouts deferred.
+
+### Service layout
+
+```
+adviz-payments-ms/
+  app/
+    __init__.py
+    settings.py       # DB_URL, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET_V1,
+                      # STRIPE_WEBHOOK_SECRET_V2, PLATFORM_FEE_RATE,
+                      # SESSIONS_MS_URL, MENTORS_MS_URL
+    models.py
+    schemas.py
+    crud.py
+    deps.py           # same X-User-* header pattern
+    scopes.py         # PaymentScope (unchanged from users-ms)
+    logging.py
+    routers/
+      payments.py     # create PaymentIntent
+      connect.py      # Stripe Express onboarding
+      webhooks.py     # v1 + v2 webhook handlers
+      admin.py        # admin payment listing
+      health.py
+  migrations/
+  tests/
+    conftest.py
+    factories.py
+    test_payments.py
+    test_connect.py
+    test_webhooks.py
+    test_admin.py
+  main.py
+  pyproject.toml      # adds stripe>=X to dependencies
+  Dockerfile
+  entrypoint.sh
+  .dockerignore
+```
+
+### Model
+
+```python
+class PaymentStatus(StrEnum):
+    PENDING   = "pending"    # PaymentIntent created, awaiting confirmation
+    SUCCEEDED = "succeeded"  # payment_intent.succeeded received
+    FAILED    = "failed"     # payment_intent.payment_failed received
+    REFUNDED  = "refunded"   # deferred
+
+class Payment(AbstractModel):
+    id                       = fields.UUIDField(primary_key=True)
+    session_id               = fields.UUIDField(unique=True)    # cross-service ref
+    mentor_id                = fields.UUIDField()               # denormalized for reporting
+    mentee_id                = fields.UUIDField()               # denormalized for reporting
+    amount_eur               = fields.DecimalField(max_digits=8, decimal_places=2)
+    platform_fee_eur         = fields.DecimalField(max_digits=8, decimal_places=2)
+    payout_eur               = fields.DecimalField(max_digits=8, decimal_places=2)
+    stripe_payment_intent_id = fields.CharField(max_length=128, unique=True)
+    stripe_client_secret     = fields.TextField()               # returned to frontend for Stripe.js
+    status                   = fields.CharEnumField(PaymentStatus, default=PaymentStatus.PENDING)
+    created_at               = fields.DatetimeField(auto_now_add=True)
+    succeeded_at             = fields.DatetimeField(null=True)
+    failed_at                = fields.DatetimeField(null=True)
+
+    class Meta:
+        table = "payments"
+```
+
+`platform_fee_eur` = `amount_eur × PLATFORM_FEE_RATE` (env var, e.g. `0.10`). `payout_eur` = `amount_eur − platform_fee_eur`. Both locked in at creation — historical accuracy if the rate changes.
+
+`Payout` model deferred — Stripe manages payouts to Express accounts automatically.
+
+### Endpoints
+
+```
+# Mentee — initiate payment for a session (sessions:write)
+POST /payments/sessions/{session_id}
+  → reads session from sessions-ms (internal call) to get price_eur + mentor_id
+  → reads mentor stripe_account_id from mentors-ms (internal call)
+  → creates Stripe PaymentIntent with:
+      amount = price_eur (in cents)
+      application_fee_amount = platform_fee_eur (in cents)
+      transfer_data[destination] = mentor.stripe_account_id
+  → persists Payment record (status=pending)
+  → returns { client_secret } for Stripe.js
+  Idempotent: if Payment already exists for session_id, returns existing client_secret
+
+# Mentor — Stripe Connect onboarding (mentor:me)
+POST /mentor/stripe/connect
+  → creates Express account if stripe_account_id is null on MentorProfile
+  → patches mentors-ms PATCH /internal/mentors/{id}/stripe-account
+  → generates Account Link URL (type=account_onboarding)
+  → returns { onboarding_url }
+
+GET  /mentor/stripe/status
+  → fetches Stripe account, checks charges_enabled
+  → returns { connected: bool, charges_enabled: bool }
+
+# Stripe webhooks (no Traefik auth — verified via Stripe-Signature)
+POST /webhooks/v1
+  → Webhook.construct_event(payload, Stripe-Signature, STRIPE_WEBHOOK_SECRET_V1)
+  → payment_intent.succeeded:
+      marks Payment succeeded, calls PATCH /internal/sessions/{id}/mark-paid on sessions-ms
+  → payment_intent.payment_failed:
+      marks Payment failed
+  → account.updated:
+      syncs charges_enabled to MentorProfile via mentors-ms internal call
+
+POST /webhooks/v2
+  → client.parse_event_notification(payload, Stripe-Signature, STRIPE_WEBHOOK_SECRET_V2)
+  → calls event_notif.fetch_related_object() to hydrate thin event
+  → no v2 events handled for MVP — returns 200 (endpoint ready for future)
+
+# Admin (admin:payments)
+GET  /admin/payments          list (?status=&page=)
+GET  /admin/payments/{id}     detail
+```
+
+Both webhook endpoints return 400 on invalid payload or signature before any processing. Both are on public Traefik routes (no JWT middleware) — security is the Stripe signature verification only.
+
+### Inter-service calls payments-ms makes
+
+| Target | Endpoint | Purpose |
+|---|---|---|
+| sessions-ms | `GET /internal/sessions/{id}` | read price_eur, mentor_id, mentee_id |
+| sessions-ms | `PATCH /internal/sessions/{id}/mark-paid` | set is_paid=True on success |
+| mentors-ms | `GET /internal/mentors/{user_id}/stripe-account` | read stripe_account_id |
+| mentors-ms | `PATCH /internal/mentors/{user_id}/stripe-account` | write stripe_account_id after Express account creation |
+
+### Additional internal endpoints needed
+
+**sessions-ms** adds:
+```
+GET  /internal/sessions/{id}          read session for payments-ms
+```
+
+**mentors-ms** adds:
+```
+GET  /internal/mentors/{user_id}/stripe-account
+PATCH /internal/mentors/{user_id}/stripe-account   body: { stripe_account_id }
+```
+
+All `/internal/*` routes are on the `backend` Docker network only — no Traefik label, not reachable externally.
+
+### Testing
+
+```
+test_payments.py   create PaymentIntent (happy path, idempotent retry, session not found, mentor no stripe account)
+test_connect.py    onboarding URL generation, status check (connected/not connected)
+test_webhooks.py   v1 succeeded → mark-paid called, v1 failed, invalid signature → 400, v2 unknown event → 200
+test_admin.py      list payments, detail, 403 non-admin
+```
+
+Coverage minimum: **60%**.
+
+---
+
 ## Deferred (post-MVP)
 
 - Application actions: `request-info`, `schedule-interview`
@@ -531,5 +697,6 @@ Run: `pytest --cov=app --cov-fail-under=60`
 - Admin live session monitoring (`/admin/sessions/live`, `/admin/sessions/upcoming`)
 - Google Calendar integration
 - Recording URL logic
-- `adviz-payments-ms` (Stripe Connect Express, payouts, `Payout` model)
+- Stripe manual payout batching + `Payout` model
 - Reviews system enhancements
+- Stripe v2 webhook event handlers
