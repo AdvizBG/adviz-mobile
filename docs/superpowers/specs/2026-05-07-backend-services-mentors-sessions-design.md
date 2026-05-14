@@ -6,6 +6,17 @@
 
 ---
 
+## Routing by environment
+
+| Environment | Backend base |
+|---|---|
+| Docker Compose dev/staging | `PathPrefix(/api)` via Traefik (each service on its own path prefix) |
+| K8s prod | `api.domain.bg` (single subdomain, Traefik routes by path prefix internally) |
+
+Frontend services must use `VITE_API_URL` env var — no hardcoded base URLs in any frontend code.
+
+---
+
 ## Phase overview
 
 1. **Scope rename + model-first** — rename all venue/booking scopes in `users-ms`, create all three service directories, write all Tortoise models, run migrations, upgrade Tortoise to `>=1.1.7`
@@ -350,6 +361,16 @@ class SessionSettings(AbstractModel):
 
 **Key constraint:** `MentorApplication` and `MentorProfile` are always separate records. On approval the admin endpoint: (1) calls `PATCH /users/{id}/scopes` on users-ms to grant `mentor:me` + `sessions:manage`, (2) creates `MentorProfile` from application data. If users-ms is down, the whole operation rolls back — no partial state.
 
+**Distributed transaction risk:** If users-ms succeeds but `MentorProfile` creation fails (e.g. DB constraint violation in mentors-ms), the user has mentor scopes but no profile. Since these are separate services a single DB transaction cannot span both. Mitigate with: (a) make `MentorProfile` creation idempotent on `user_id` so an admin can safely retry the approval endpoint, and (b) add a reconciliation check in `GET /admin/applications/{id}` that flags `scopes_granted=True, profile_missing=True` so broken states are visible.
+
+**Price precision:** When copying `hourly_price_eur` from `MentorApplication` to `MentorProfile`, always round to two decimal places via `Decimal(str(value)).quantize(Decimal("0.01"))` before persisting. Raw float arithmetic can silently introduce sub-cent drift.
+
+**JSON field indexing:** `topics` and `languages` are `JSONField` — fine for MVP. Once filtering on these fields lands in `GET /mentors`, add GIN indexes in a migration:
+```sql
+CREATE INDEX mentor_profiles_topics_gin   ON mentor_profiles USING GIN (topics);
+CREATE INDEX mentor_profiles_languages_gin ON mentor_profiles USING GIN (languages);
+```
+
 ---
 
 ## Phase 1: sessions-ms models
@@ -414,7 +435,15 @@ class Review(AbstractModel):
 - `LIVE` → `COMPLETED` | `NO_SHOW`
 - `COMPLETED`, `CANCELLED`, `NO_SHOW` → 409 (terminal)
 
+**NO_SHOW timing guard:** `NO_SHOW` may only be set when `utcnow() > session.scheduled_start`. Reject with 409 if the transition is attempted before the session was due to start — a pre-start no-show is a cancellation, not a no-show.
+
 `mentor_id` / `mentee_id` on `Review` are denormalized from `Session` at creation time — avoids a join on every admin moderation query.
+
+---
+
+## Idempotency-Key header
+
+`POST /sessions` and `POST /payments/sessions/{session_id}` must accept an `Idempotency-Key` request header. Store the key alongside the created record and, on a duplicate key, return the original response with `200 OK` rather than creating a second record. This prevents double-bookings on laggy connections where the client retries a timed-out request.
 
 ---
 
@@ -486,7 +515,7 @@ PATCH /internal/sessions/{id}/mark-paid  sets is_paid=True
 
 ## Testing strategy
 
-Coverage minimum: **60%** (MVP).
+Coverage minimum: **60%** (MVP). Exception: `webhooks.py` and any file containing status-transition logic must reach **80%** — silent failures in those paths require the most manual cleanup.
 
 ### Fixtures (both services)
 
@@ -521,13 +550,21 @@ Mock the CRUD layer, not the database. Use `unittest.mock.AsyncMock`.
 
 Every endpoint: happy path + 401 anon + 403 wrong scope + invalid state (409/422).
 
-Run: `pytest --cov=app --cov-fail-under=60`
+Run: `pytest --cov=app --cov-fail-under=60` (global floor; webhooks + transitions must individually pass `--cov-fail-under=80`)
 
 ---
 
 ---
 
 ## Phase 4: payments-ms
+
+### Cross-service data dependencies
+
+| Caller | Target | Data needed | Risk |
+|---|---|---|---|
+| payments-ms | sessions-ms | `price_eur` | Price mismatch if session is updated while payment is pending — read price at PaymentIntent creation time and lock it in `Payment.amount_eur` |
+| payments-ms | mentors-ms | `stripe_account_id` | If mentor hasn't finished Stripe onboarding this is `null` — block PaymentIntent creation with 409 and surface a clear error |
+| mentors-ms | users-ms | scopes | Essential for the approval flow — users-ms must be reachable; failure rolls back the whole approval |
 
 ### Stripe Connect strategy
 
@@ -612,13 +649,16 @@ class Payment(AbstractModel):
 POST /payments/sessions/{session_id}
   → reads session from sessions-ms (internal call) to get price_eur + mentor_id
   → reads mentor stripe_account_id from mentors-ms (internal call)
+  → reads session from sessions-ms (internal call) to get price_eur + mentor_id
+  → reads mentor stripe_account_id from mentors-ms (internal call); return 409 if null (onboarding incomplete)
   → creates Stripe PaymentIntent with:
       amount = price_eur (in cents)
       application_fee_amount = platform_fee_eur (in cents)
       transfer_data[destination] = mentor.stripe_account_id
+      metadata = { session_id: <uuid> }   ← required for Stripe Dashboard traceability
   → persists Payment record (status=pending)
   → returns { client_secret } for Stripe.js
-  Idempotent: if Payment already exists for session_id, returns existing client_secret
+  Idempotent: if Payment already exists for session_id, returns existing client_secret with 200
 
 # Mentor — Stripe Connect onboarding (mentor:me)
 POST /mentor/stripe/connect
@@ -636,8 +676,9 @@ POST /webhooks/v1
   → Webhook.construct_event(payload, Stripe-Signature, STRIPE_WEBHOOK_SECRET_V1)
   → payment_intent.succeeded:
       marks Payment succeeded, calls PATCH /internal/sessions/{id}/mark-paid on sessions-ms
+      idempotent: if Payment is already succeeded, return 200 and skip the sessions-ms call
   → payment_intent.payment_failed:
-      marks Payment failed
+      marks Payment failed; idempotent if already failed
   → account.updated:
       syncs charges_enabled to MentorProfile via mentors-ms internal call
 
@@ -686,7 +727,31 @@ test_webhooks.py   v1 succeeded → mark-paid called, v1 failed, invalid signatu
 test_admin.py      list payments, detail, 403 non-admin
 ```
 
-Coverage minimum: **60%**.
+Coverage minimum: **60%** overall; `test_webhooks.py` must reach **80%**.
+
+**Webhook race condition (frontend):** The frontend may redirect to a "Success" page before the Stripe webhook has been processed and `is_paid` flipped. The frontend must poll `GET /sessions/{id}` and display a "Payment processing…" state until `is_paid=True` or a timeout is reached — do not assume paid on client-side redirect alone.
+
+---
+
+## Logging
+
+All four backend services (users-ms, mentors-ms, sessions-ms, payments-ms) use **loguru** via `app/logging.py` + `setup_logging()` called in `main.py`. `LOG_LEVEL` env var controls verbosity (default `INFO`; set `DEBUG` locally).
+
+Minimum log points per service:
+
+| Event | Level |
+|---|---|
+| Service startup (host, port, DB_URL masked) | `INFO` |
+| Every request/response (method, path, status, latency) | `INFO` |
+| Scope check failure (user_id, missing scopes) | `WARNING` |
+| Status transition (entity id, old → new) | `INFO` |
+| Transition guard rejection (entity id, attempted transition, reason) | `WARNING` |
+| Inter-service call (target, endpoint, status code) | `DEBUG` |
+| Inter-service call failure | `ERROR` |
+| Stripe webhook received (event type, payment intent id) | `INFO` |
+| Stripe signature verification failure | `ERROR` |
+| Idempotent duplicate detected (entity id, idempotency key) | `DEBUG` |
+| Unhandled exception (full traceback) | `ERROR` |
 
 ---
 

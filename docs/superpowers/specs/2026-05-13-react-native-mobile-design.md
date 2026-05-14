@@ -40,6 +40,8 @@ Admins use the desktop `adviz-admin-panel` only — no admin flows in this app.
 
 `@stripe/stripe-react-native` works in managed Expo but requires a **development build** (via `eas build --profile development`) — it cannot run in Expo Go. All non-payment screens can be developed and tested in Expo Go as usual. The development build is built once via EAS and installed on device/simulator, then supports live reload like Expo Go.
 
+Add **`expo-dev-client`** to the project: it provides the Expo Go experience (fast refresh, QR scanning) inside the custom binary that includes Stripe's native code, making local payment-sheet debugging practical without rebuilding.
+
 ---
 
 ## Design tokens
@@ -66,17 +68,19 @@ colors: {
 
 Status accents: `emerald-500/100` (confirmed/approved), `rose-500/100` (rejected/cancelled), `amber-500/100` (pending).
 
-Typography: **Inter** via `@expo-google-fonts/inter` + **Inria Sans** (`font-display`) for wordmark and screen titles. Use NativeWind semantic scale — no arbitrary pixel values unless mirroring prototype exactly.
+Typography: **Inter** via `@expo-google-fonts/inter` + **Inria Sans** (`font-display`) for wordmark and screen titles. Use NativeWind semantic scale — no arbitrary pixel values unless mirroring prototype exactly. Use `rem`-based units where NativeWind supports them so that system font-size preferences are respected.
 
 ---
 
 ## Layout constants
 
-All screens use these fixed offsets (portrait, iPhone 14 Pro — 390×844):
+**Rule: no hardcoded device offsets.** All insets that vary by device (status bar, home indicator, keyboard) must be sourced from `useSafeAreaInsets()` or the relevant Expo/RN API at runtime. The pixel values below are the iPhone 14 Pro reference only — implementation must be dynamic.
+
+All screens use these reference offsets (portrait, iPhone 14 Pro — 390×844):
 
 | Zone | Value | Notes |
 |---|---|---|
-| Status bar height | 58px | dynamic island device; use `pt-[58px]` in headers |
+| Status bar height | 58px | dynamic island device; **derive at runtime** via `useSafeAreaInsets().top` from `react-native-safe-area-context` — do not hardcode `pt-[58px]` |
 | App header height | 52px (top: 54) | `AppHeader` component |
 | Tab bar height | 83px | `bottom: 83` in scroll content areas |
 | Booking step content top | 196px | after step label + title |
@@ -110,7 +114,7 @@ All screens use these fixed offsets (portrait, iPhone 14 Pro — 390×844):
 ## Navigation structure
 
 Root layout (`app/_layout.tsx`) checks auth state on mount:
-- Unauthenticated → redirect to `/(auth)/login`
+- Unauthenticated → stash the intended destination, redirect to `/(auth)/login`, and redirect back after successful login (cold-start deep-link support)
 - Authenticated, no `mentor:me` scope → redirect to `/(mentee)/browse`
 - Authenticated, has `mentor:me` scope → redirect to `/(mentor)/dashboard`
 
@@ -148,7 +152,7 @@ app/
 
 ### Tab bars
 
-**Mentee tab bar** (bottom, `bg-white/96 backdrop-blur border-t border-line`, `padding: "8px 8px 28px"`):
+**Mentee tab bar** (bottom, `bg-white/96 backdrop-blur border-t border-line`, `padding: "8px 8px {safeAreaInsets.bottom > 0 ? safeAreaInsets.bottom : 8}px"`). The bottom padding must be driven by `useSafeAreaInsets().bottom` — not hardcoded — so the tab bar sits correctly on SE-class devices and Android where the home indicator inset differs from iPhone 14 Pro's 83px total. Scroll content `bottom` offset must also use the same dynamic inset (`safeAreaInsets.bottom + tabBarInnerHeight`) rather than a fixed `bottom-[83px]`.
 
 | Tab | Icon | BG label | Active color |
 |---|---|---|---|
@@ -181,7 +185,7 @@ Approved mentors are also mentees. Both tab groups coexist in the router — swi
 All components mirror the prototype in `components.jsx` and `frame.jsx`.
 
 ### `AppHeader`
-`absolute left-0 right-0 z-30 flex items-center justify-between` — `top: 54, height: 52, padding: "0 12px"`. Back chevron (22px, `text-ink`), centered title `font-semibold text-[15px] text-ink`, right slot (optional action button).
+`absolute left-0 right-0 z-30 flex items-center justify-between` — `top: safeAreaInsets.top + 2, height: 52, padding: "0 12px"`. Must be `overflow: visible` — never `overflow-hidden`; clipping this view would cut off absolutely-positioned `Toast` overlays and any dropdowns that originate from the header's right slot. Back chevron (22px, `text-ink`), centered title `font-semibold text-[15px] text-ink`, right slot (optional action button).
 
 ### `MAvatar`
 `rounded-full flex items-center justify-center font-semibold text-ink`. Background = `spec.color`, initials = `spec.initials`, font size = `size * 0.36`. Online dot: `rounded-full border-2 border-white bg-teal` at `w-{size*0.22} h-{size*0.22}` bottom-right. Optional border ring: `box-shadow: 0 0 0 3px #FAF7F2`.
@@ -205,7 +209,7 @@ Container: `flex items-center gap-1 bg-purple-100/50 rounded-full p-1`. Active t
 Container: `flex items-center gap-5 border-b border-line`. Active: `pb-2.5 -mb-px text-[13px] font-semibold text-purple-deep border-b-2 border-purple-deep`. Inactive: `text-ink/45`.
 
 ### `Switch`
-`rounded-full flex items-center` — `width: 38, height: 22`. On: `bg-purple-deep`. Off: `bg-line-strong`. Knob: `18×18 rounded-full bg-white shadow-sm`, `translateX(16px)` when on.
+Wrap React Native's built-in `<Switch>` with NativeWind classes rather than hand-rolling. This gives `accessibilityRole="switch"` and `accessibilityState={{ checked }}` for free. Track tint: `trackColor={{ false: colors.line-strong, true: colors.purple-deep }}`. Thumb: `thumbColor="white"`. Dimensions `width: 38, height: 22` set via `style` if the native default diverges.
 
 ### `SessionBadge`
 `inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold`:
@@ -221,7 +225,7 @@ Container: `flex items-center gap-5 border-b border-line`. Active: `pb-2.5 -mb-p
 - info: `bg-purple-100 border-purple-200`, icon `bg-purple-deep text-white`
 - warning: `bg-amber-50 border-amber-200`, icon `bg-amber-500 text-white`
 
-Positioned `absolute top-[58px+n] left-0 right-0 z-40`, slides down on entry.
+Positioned `absolute top-[safeAreaInsets.top+n] left-0 right-0 z-50` (must exceed `AppHeader`'s `z-30`; never clipped by it). Slides down on entry.
 
 ### `CTA` (primary action button)
 `w-full py-3.5 rounded-2xl font-bold text-[15px]`. Primary: `bg-purple-deep text-white`. Dark variant: `bg-ink text-white`. Disabled: `bg-slate-200 text-ink/40`.
@@ -282,7 +286,7 @@ Scroll content (`absolute left-0 right-0 overflow-y-auto px-5 top-[220] bottom-[
 
 **Loading skeleton:** 4 cards — `w-14 h-14 rounded-full bg-line-strong/60 animate-pulse` avatar + two text lines + two chip placeholders. Header chips also pulse. Loading indicator: `w-3 h-3 rounded-full border-2 border-purple-deep border-t-transparent animate-spin` + "Зареждаме ментори..."
 
-**Offline state:** `bg-ink-soft` banner strip at `top-[116]` with amber "Без интернет" text + "Retry" button. Content area shows globe icon + "View saved" + "Try again" buttons.
+**Offline state:** `bg-ink-soft` banner strip at `top-[116]` with amber "Без интернет" text + "Retry" button. Content area shows globe icon + "View saved" + "Try again" buttons. The "Book session" button on the mentor profile screen must be **explicitly disabled** (or hidden) when offline — do not allow ghost bookings to be submitted.
 
 Filters bottom sheet (`rounded-t-[28px] bg-white`, overlay `bg-[rgba(15,10,50,0.5)]`):
 - Drag handle: `w-9 h-1 rounded-full bg-line-strong`
@@ -326,7 +330,7 @@ Scroll content (`top: 106, bottom: 96 (sticky CTA)`):
 - 7-day week `grid grid-cols-7 gap-1 mt-3`. Day button: `flex flex-col items-center py-2 rounded-xl`. Selected day: `bg-purple-deep text-white` — day abbr `text-white/70 text-[10px] font-semibold uppercase`, date `text-white text-[15px] font-semibold`. Inactive: `bg-white border border-line`.
 - Available slots heading: `text-[12.5px] font-semibold text-ink/65`
 - Slots `grid grid-cols-3 gap-2 mt-2.5`. Selected: `bg-purple-deep text-white`. Booked: `bg-slate-50 text-ink/30 line-through`. Available: `bg-white border border-line-strong text-ink`. Style: `py-2.5 rounded-xl text-[13px] font-semibold`.
-- Timezone notice: `mt-4 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-purple-100/60`. Clock icon `text-purple-deep` + `text-[11.5px] text-purple-deep font-medium`.
+- Timezone notice: `mt-4 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-purple-100/60`. Clock icon `text-purple-deep` + `text-[11.5px] text-purple-deep font-medium`. **Mandatory** — must show the user's resolved local timezone explicitly (e.g. "Времената са в UTC+2 / Times shown in your local time (UTC+2)") to prevent mentor/mentee scheduling disputes.
 - CTA bar: selected slot label `text-[11.5px] text-ink/55` + "Continue" `CTA`.
 
 **Slot conflict state:** warning toast from top. Just-taken slot: `bg-amber-50 text-amber-700 border-2 border-amber-200` + absolute `ЗАЕТ/GONE` badge `bg-amber-500 text-white text-[8.5px] font-bold uppercase`. Info card: `MCard p-3.5 bg-amber-50 border-amber-200` explaining why.
@@ -672,7 +676,7 @@ EXPO_PUBLIC_STRIPE_KEY=     # Stripe publishable key
 
 ## Deferred (post-MVP)
 
-- Push notifications (session reminders via Expo Notifications + backend webhook)
+- Push notifications — **deferred** (session reminders via Expo Notifications + backend webhook; add `expo-notifications` to package.json now with no-op handler so the permission prompt can be shown post-onboarding)
 - In-app video call (replaces "Join" external URL stub — Daily.co / Agora TBD)
 - Stripe Connect onboarding for mentors (set up payout account from mobile)
 - Apple Calendar `.ics` download (confirmation screen shows stub)
