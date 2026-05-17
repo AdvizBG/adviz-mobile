@@ -1,6 +1,6 @@
 module.exports = {
   preset: 'jest-expo',
-  setupFilesAfterFramework: ['./jest.setup.ts'],
+  setupFilesAfterEnv: ['./jest.setup.ts'],
   moduleNameMapper: {
     '^@stripe/stripe-react-native$': '<rootDir>/__mocks__/@stripe/stripe-react-native.ts',
   },
