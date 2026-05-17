@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity, Modal, Switch } from 'react-native';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useNavigation } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Eye } from 'lucide-react-native';
-import { AppHeader } from '../../../src/components/ui/AppHeader';
 import { MCard } from '../../../src/components/ui/MCard';
+import { profileSchema } from '../../../src/features/MentorProfile/schemas/profile';
 import { Eyebrow } from '../../../src/components/ui/Eyebrow';
 import { TopicChip } from '../../../src/components/ui/TopicChip';
 import { CTA } from '../../../src/components/ui/CTA';
@@ -29,7 +28,6 @@ export default function MentorProfileScreen() {
   const [topics, setTopics] = useState<string[]>([]);
   const [languages, setLanguages] = useState<string[]>([]);
   const [price, setPrice] = useState('');
-  const [visible, setVisible] = useState(true);
   const [isDirty, setIsDirty] = useState(false);
   const [showUnsaved, setShowUnsaved] = useState(false);
 
@@ -40,7 +38,6 @@ export default function MentorProfileScreen() {
       setTopics(profile.topics as string[]);
       setLanguages(profile.languages as string[]);
       setPrice(profile.hourly_price_eur);
-      setVisible(true);
     }
   }, [profile]);
 
@@ -56,9 +53,18 @@ export default function MentorProfileScreen() {
   function markDirty() { setIsDirty(true); }
 
   async function handleSave() {
-    await update.mutateAsync({ headline, about, topics, languages, hourly_price_eur: price });
-    setIsDirty(false);
-    show({ tone: 'success', title: 'Профилът е запазен' });
+    const result = profileSchema.safeParse({ headline, about, topics, languages, hourly_price_eur: price });
+    if (!result.success) {
+      show({ tone: 'error', title: result.error.issues[0]?.message ?? 'Validation error' });
+      return;
+    }
+    try {
+      await update.mutateAsync({ headline, about, topics, languages, hourly_price_eur: price });
+      setIsDirty(false);
+      show({ tone: 'success', title: t('mentor.profile.saved') });
+    } catch {
+      show({ tone: 'error', title: t('common.save_error') });
+    }
   }
 
   const earn = price ? (parseFloat(price) * 0.9).toFixed(2) : '—';
@@ -155,15 +161,6 @@ export default function MentorProfileScreen() {
         </View>
         <Text className="text-[10.5px] text-ink/45 mt-1">{t('mentor.profile.fee_note')}</Text>
 
-        {/* Visibility */}
-        <MCard className="mt-4 p-3.5 flex-row items-center gap-3">
-          <View className="w-9 h-9 rounded-xl bg-purple-100 items-center justify-center">
-            <Eye size={16} color="#3E1D87" />
-          </View>
-          <Text className="flex-1 text-[13px] font-medium text-ink">{t('mentor.profile.visibility')}</Text>
-          <Switch value={visible} onValueChange={(v) => { setVisible(v); markDirty(); }} trackColor={{ false: '#DAD6CC', true: '#3E1D87' }} thumbColor="white" />
-        </MCard>
-
         {/* Switch to mentee */}
         <TouchableOpacity onPress={() => router.replace('/(mentee)/browse')} className="mt-3 w-full py-3 rounded-2xl bg-white border border-line-strong flex-row items-center justify-center gap-2">
           <Text className="text-[13px] font-semibold text-ink">{t('mentor.profile.switch_mentee')}</Text>
@@ -176,7 +173,7 @@ export default function MentorProfileScreen() {
           <View className="bg-white rounded-t-[28px] pb-9 pt-4 px-5">
             <View className="w-9 h-1 rounded-full bg-line-strong self-center mb-4" />
             <Text className="text-[19px] font-semibold text-ink text-center">{t('mentor.profile.unsaved_title')}</Text>
-            <CTA label={t('mentor.profile.unsaved_save')} onPress={() => { handleSave(); setShowUnsaved(false); }} className="mt-4" />
+            <CTA label={t('mentor.profile.unsaved_save')} onPress={async () => { await handleSave(); setShowUnsaved(false); }} className="mt-4" />
             <TouchableOpacity onPress={() => setShowUnsaved(false)} className="mt-2 py-3 items-center">
               <Text className="text-[13px] font-semibold text-ink">{t('mentor.profile.unsaved_keep')}</Text>
             </TouchableOpacity>
