@@ -1,3 +1,5 @@
+import React from 'react';
+
 export const useStripe = () => ({
   initPaymentSheet: jest.fn().mockResolvedValue({ error: undefined }),
   presentPaymentSheet: jest.fn().mockResolvedValue({ error: undefined }),
