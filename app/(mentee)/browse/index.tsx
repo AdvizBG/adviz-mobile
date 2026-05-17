@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator } 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Search, SlidersHorizontal } from 'lucide-react-native';
+import NetInfo from '@react-native-community/netinfo';
 import { useMentors } from '../../../src/features/Mentors/api/hooks';
 import { MentorCard } from '../../../src/features/Mentors/components/mentor-card';
 import { useFilterStore } from '../../../src/store/filters';
@@ -23,7 +24,10 @@ export default function BrowseScreen() {
     topic: activeCategory !== 'Всички' ? activeCategory : undefined,
   };
 
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useMentors(queryParams);
+  const netInfo = NetInfo.useNetInfo();
+  const isOffline = netInfo.isConnected === false;
+
+  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } = useMentors(queryParams);
   const mentors = data?.pages.flat() ?? [];
 
   const HEADER_HEIGHT = insets.top + 58 + 52 + 40;
@@ -34,7 +38,7 @@ export default function BrowseScreen() {
       {/* Sticky header */}
       <View style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, paddingTop: insets.top, paddingHorizontal: 20, paddingBottom: 12, backgroundColor: '#FAF7F2' }}>
         <View className="flex-row items-center justify-between">
-          <Text style={{ fontSize: 26, letterSpacing: 1, color: '#1B1B43' }}>{t('mentee.browse.title')}</Text>
+          <Text style={{ fontSize: 26, letterSpacing: 1, color: '#1B1B43', fontFamily: 'InriaSans_400Regular' }}>{t('mentee.browse.title')}</Text>
           <TouchableOpacity className="w-9 h-9 rounded-full bg-white border border-line items-center justify-center">
             <Text className="text-[11px] font-semibold text-ink">BG</Text>
           </TouchableOpacity>
@@ -77,6 +81,13 @@ export default function BrowseScreen() {
         />
       </View>
 
+      {isOffline && (
+        <View style={{ position: 'absolute', top: insets.top + 116, left: 0, right: 0, zIndex: 20, backgroundColor: '#2D2D5C', padding: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text className="text-white text-[12px] font-semibold">{t('mentee.browse.offline_banner')}</Text>
+          <TouchableOpacity><Text className="text-amber-400 text-[12px] font-semibold">Retry</Text></TouchableOpacity>
+        </View>
+      )}
+
       <FlatList
         data={mentors}
         keyExtractor={(item) => item.id}
@@ -94,6 +105,10 @@ export default function BrowseScreen() {
             <View className="items-center mt-10">
               <ActivityIndicator color="#3E1D87" />
               <Text className="text-[12px] text-ink/55 mt-2">{t('mentee.browse.loading')}</Text>
+            </View>
+          ) : isError ? (
+            <View className="items-center mt-10">
+              <Text className="text-[13px] text-ink/55">{t('common.error')}</Text>
             </View>
           ) : null
         }
