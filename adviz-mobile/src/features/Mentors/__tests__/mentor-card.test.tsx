@@ -20,4 +20,5 @@ test('shows first 3 topics', () => {
   const { getByText } = render(<MentorCard mentor={mentor} />);
   expect(getByText('React')).toBeTruthy();
   expect(getByText('Node.js')).toBeTruthy();
+  expect(getByText('TypeScript')).toBeTruthy();
 });
