@@ -52,6 +52,11 @@ export interface ReviewRead {
   rating: number;
   body: string;
   status: ReviewStatus;
+  flagged_by: string | null;
+  flag_reason: string | null;
+  flagged_at: string | null;
+  hidden_at: string | null;
+  hidden_by: string | null;
   created_at: string;
 }
 
