@@ -2,11 +2,15 @@ import { useQuery, useMutation, useInfiniteQuery, useQueryClient } from '@tansta
 import { api } from '../../../lib/api';
 import type { MentorProfileRead, MentorProfileUpdate, SlotRead, MentorListParams, ScheduleRead, ScheduleUpdate } from '../../../lib/types';
 
+const MENTORS_PAGE_SIZE = 10;
+
 export const mentorKeys = {
   all: ['mentors'] as const,
   list: (params: MentorListParams) => [...mentorKeys.all, 'list', params] as const,
   detail: (id: string) => [...mentorKeys.all, 'detail', id] as const,
   availability: (id: string, from: string, to: string) => [...mentorKeys.all, 'availability', id, from, to] as const,
+  me: () => ['mentor-me'] as const,
+  schedule: () => ['mentor-schedule'] as const,
 };
 
 export function useMentors(params: MentorListParams) {
@@ -14,7 +18,7 @@ export function useMentors(params: MentorListParams) {
     queryKey: mentorKeys.list(params),
     queryFn: ({ pageParam = 1 }) =>
       api.get<MentorProfileRead[]>('/mentors/', { params: { ...params, page: pageParam } }).then((r) => r.data),
-    getNextPageParam: (lastPage, allPages) => lastPage.length === 10 ? allPages.length + 1 : undefined,
+    getNextPageParam: (lastPage, allPages) => lastPage.length === MENTORS_PAGE_SIZE ? allPages.length + 1 : undefined,
     initialPageParam: 1,
     staleTime: 30_000,
   });
@@ -41,7 +45,7 @@ export function useMentorAvailability(id: string, from: string, to: string) {
 
 export function useMentorMe() {
   return useQuery({
-    queryKey: ['mentor-me'],
+    queryKey: mentorKeys.me(),
     queryFn: () => api.get<MentorProfileRead>('/mentor/me').then((r) => r.data),
   });
 }
@@ -51,13 +55,13 @@ export function useUpdateMentorMe() {
   return useMutation({
     mutationFn: (data: MentorProfileUpdate) =>
       api.put<MentorProfileRead>('/mentor/me', data).then((r) => r.data),
-    onSuccess: (updated) => queryClient.setQueryData(['mentor-me'], updated),
+    onSuccess: (updated) => queryClient.setQueryData(mentorKeys.me(), updated),
   });
 }
 
 export function useSchedule() {
   return useQuery({
-    queryKey: ['mentor-schedule'],
+    queryKey: mentorKeys.schedule(),
     queryFn: () => api.get<ScheduleRead>('/mentor/schedule').then((r) => r.data),
   });
 }
@@ -67,6 +71,6 @@ export function useSaveSchedule() {
   return useMutation({
     mutationFn: (data: ScheduleUpdate) =>
       api.put<ScheduleRead>('/mentor/schedule', data).then((r) => r.data),
-    onSuccess: (updated) => queryClient.setQueryData(['mentor-schedule'], updated),
+    onSuccess: (updated) => queryClient.setQueryData(mentorKeys.schedule(), updated),
   });
 }

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -15,7 +14,6 @@ export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const register = useRegister();
-  const [terms, setTerms] = useState(false);
 
   const form = useForm({
     defaultValues: { full_name: '', email: '', password: '', confirm_password: '', terms: false as true },
@@ -53,7 +51,7 @@ export default function RegisterScreen() {
                         className="px-3.5 py-3 rounded-xl border border-line-strong bg-white text-[14px] text-ink"
                         secureTextEntry={name === 'password' || name === 'confirm_password'}
                         keyboardType={name === 'email' ? 'email-address' : 'default'}
-                        autoCapitalize={name === 'email' ? 'none' : 'words'}
+                        autoCapitalize={name === 'email' || name === 'password' || name === 'confirm_password' ? 'none' : 'words'}
                         value={field.state.value}
                         onChangeText={field.handleChange}
                         onBlur={field.handleBlur}
@@ -71,17 +69,23 @@ export default function RegisterScreen() {
             </form.Field>
           ))}
 
-          <TouchableOpacity className="flex-row items-center gap-2 mt-4" onPress={() => { setTerms(!terms); form.setFieldValue('terms', !terms as true); }}>
-            {terms ? <CheckSquare size={16} color="#3E1D87" /> : <Square size={16} color="#DAD6CC" />}
-            <Text className="text-[12px] text-ink/60">{t('auth.register.terms')}</Text>
-          </TouchableOpacity>
+          <form.Field name="terms">
+            {(field) => (
+              <TouchableOpacity className="flex-row items-center gap-2 mt-4" onPress={() => field.handleChange(!field.state.value as true)}>
+                {field.state.value ? <CheckSquare size={16} color="#3E1D87" /> : <Square size={16} color="#DAD6CC" />}
+                <Text className="text-[12px] text-ink/60">{t('auth.register.terms')}</Text>
+              </TouchableOpacity>
+            )}
+          </form.Field>
 
-          <CTA label={t('auth.register.submit')} onPress={form.handleSubmit} loading={register.isPending} className="mt-5" />
+          <form.Subscribe selector={(state) => state.values.terms}>
+            {(termsAccepted) => (
+              <CTA label={t('auth.register.submit')} onPress={form.handleSubmit} loading={register.isPending} disabled={!termsAccepted} className="mt-5" />
+            )}
+          </form.Subscribe>
 
           <Text className="text-[12px] text-ink/50 text-center mt-3">
-            {t('auth.register.discount_nudge', { percent: '90' }).replace('90%', '')}
-            <Text className="text-coral font-semibold">90%</Text>
-            {' '}на първата сесия
+            {t('auth.register.discount_nudge', { percent: '90' })}
           </Text>
         </ScrollView>
       </View>
