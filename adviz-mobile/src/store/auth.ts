@@ -37,8 +37,8 @@ export const useAuthStore = create<AuthState>()(
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (s) => ({ user: s.user, scopes: s.scopes }),
       onRehydrateStorage: () => (state) => {
-        // Sync tokenStore on rehydration so api.ts interceptors are ready immediately
-        if (state?.token) tokenStore.set(state.token);
+        // token is excluded from partialize — load it from SecureStore at app init
+        // via loadPersistedToken(). We only register the clearAuth callback here.
         tokenStore.setClearAuth(() => state && state.clearAuth());
       },
     },
