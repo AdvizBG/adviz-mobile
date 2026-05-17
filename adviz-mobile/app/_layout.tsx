@@ -8,6 +8,7 @@ import { StripeProvider } from '@stripe/stripe-react-native';
 import { useAuthStore } from '../src/store/auth';
 import { isMentor } from '../src/lib/scopes';
 import { QueryProvider } from '../src/lib/query-client';
+import { ToastProvider } from '../src/components/ui/ToastProvider';
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { token, scopes } = useAuthStore();
@@ -49,9 +50,11 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <StripeProvider publishableKey={process.env.EXPO_PUBLIC_STRIPE_KEY!}>
           <QueryProvider>
-            <AuthGuard>
-              <Stack screenOptions={{ headerShown: false }} />
-            </AuthGuard>
+            <ToastProvider>
+              <AuthGuard>
+                <Stack screenOptions={{ headerShown: false }} />
+              </AuthGuard>
+            </ToastProvider>
           </QueryProvider>
         </StripeProvider>
       </SafeAreaProvider>
