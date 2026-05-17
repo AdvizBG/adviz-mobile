@@ -7,7 +7,7 @@
     "scheme": "adviz",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
-    "splash": { "image": "./assets/splash.png", "resizeMode": "contain", "backgroundColor": "#FAF7F2" },
+    "splash": { "image": "./assets/splash-icon.png", "resizeMode": "contain", "backgroundColor": "#FAF7F2" },
     "plugins": [
       "expo-router",
       "expo-secure-store",
