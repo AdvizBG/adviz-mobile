@@ -45,18 +45,22 @@ export function useCreateSession() {
   return useMutation({
     mutationFn: (data: SessionCreate) =>
       api.post<SessionRead>('/sessions/', data, {
-        headers: { 'Idempotency-Key': `${data.mentor_id}-${data.scheduled_start}-${Date.now()}` },
+        headers: { 'Idempotency-Key': `${data.mentor_id}-${data.scheduled_start}` },
       }).then((r) => r.data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: sessionKeys.mine() }),
   });
 }
 
 export function useCreatePayment() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (sessionId: string) =>
       api.post<PaymentIntentResponse>(`/payments/sessions/${sessionId}`, null, {
         headers: { 'Idempotency-Key': `pay-${sessionId}` },
       }).then((r) => r.data),
+    onSuccess: (_, sessionId) => {
+      queryClient.invalidateQueries({ queryKey: sessionKeys.detail(sessionId) });
+    },
   });
 }
 
