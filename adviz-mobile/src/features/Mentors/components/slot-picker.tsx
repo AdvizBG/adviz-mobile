@@ -102,7 +102,7 @@ export function SlotPicker({ mentorId, onSelect, selectedSlot }: SlotPickerProps
               const isSelected = selectedSlot?.start === slot.start;
               return (
                 <TouchableOpacity
-                  key={slot.start}
+                  key={`${slot.start}-${slot.end}`}
                   onPress={() => onSelect(slot)}
                   style={{ paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, backgroundColor: isSelected ? '#3E1D87' : 'white', borderColor: isSelected ? '#3E1D87' : '#DAD6CC', width: '30%' }}
                 >
