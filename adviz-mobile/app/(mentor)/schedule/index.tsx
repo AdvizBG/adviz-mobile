@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Switch } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Switch, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -9,7 +9,7 @@ import { UnderlineTabs } from '../../../src/components/ui/UnderlineTabs';
 import { useToast } from '../../../src/components/ui/ToastProvider';
 import { useSchedule, useSaveSchedule } from '../../../src/features/Mentors/api/hooks';
 import { detectOverlaps } from '../../../src/features/MentorSchedule/schemas/schedule';
-import type { AvailabilityTemplateRead, ScheduleRead } from '../../../src/lib/types';
+import type { AvailabilityTemplateRead } from '../../../src/lib/types';
 
 function hmToDate(hm: string): Date {
   const [h, m] = hm.split(':').map(Number);
@@ -55,6 +55,7 @@ export default function MentorScheduleScreen() {
   const save = useSaveSchedule();
   const [tab, setTab] = useState<ScheduleTab>('template');
   const [days, setDays] = useState<DayTemplate[]>(buildDayTemplates([]));
+  const [activePicker, setActivePicker] = useState<{ weekday: number; idx: number; field: 'start_time' | 'end_time' } | null>(null);
   const [settings, setSettings] = useState({ length_minutes: 60, buffer_minutes: 15, min_notice_hours: 24, max_per_day: 4, visibility: 'public' as const });
 
   useEffect(() => {
@@ -80,8 +81,12 @@ export default function MentorScheduleScreen() {
         ? day.ranges.map((r) => ({ weekday: day.weekday, start_time: r.start_time + ':00', end_time: r.end_time + ':00', timezone: day.timezone }))
         : []
     );
-    await save.mutateAsync({ templates, session_settings: settings });
-    show({ tone: 'success', title: t('mentor.schedule.saved') });
+    try {
+      await save.mutateAsync({ templates, session_settings: settings });
+      show({ tone: 'success', title: t('mentor.schedule.saved') });
+    } catch {
+      show({ tone: 'error', title: t('mentor.schedule.save_error') });
+    }
   }
 
   function updateRange(weekday: number, idx: number, field: 'start_time' | 'end_time', value: string) {
@@ -99,9 +104,11 @@ export default function MentorScheduleScreen() {
   }
 
   function removeRange(weekday: number, idx: number) {
-    setDays((prev) => prev.map((d) =>
-      d.weekday === weekday ? { ...d, ranges: d.ranges.filter((_, i) => i !== idx) } : d
-    ));
+    setDays((prev) => prev.map((d) => {
+      if (d.weekday !== weekday) return d;
+      const ranges = d.ranges.filter((_, i) => i !== idx);
+      return { ...d, ranges, enabled: ranges.length > 0 };
+    }));
   }
 
   const HEADER_HEIGHT = insets.top + 58 + 52;
@@ -118,7 +125,7 @@ export default function MentorScheduleScreen() {
             className={`px-3 py-1.5 rounded-full ${hasErrors ? 'bg-coral' : 'bg-purple-deep'}`}
           >
             <Text className="text-white text-[11.5px] font-semibold">
-              {hasErrors ? `${Object.keys(overlapErrors).length} ${t('mentor.schedule.save_blocked')}` : t('mentor.schedule.save')}
+              {save.isPending ? t('mentor.schedule.saving') : hasErrors ? `${Object.keys(overlapErrors).length} ${t('mentor.schedule.save_blocked')}` : t('mentor.schedule.save')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -166,19 +173,19 @@ export default function MentorScheduleScreen() {
                     <View className="mt-2 gap-1.5">
                       {day.ranges.map((range, idx) => (
                         <View key={idx} className="flex-row items-center gap-1.5">
-                          <DateTimePicker
-                            mode="time"
-                            is24Hour
-                            value={hmToDate(range.start_time)}
-                            onChange={(_, d) => d && updateRange(day.weekday, idx, 'start_time', dateToHm(d))}
-                          />
+                          <TouchableOpacity
+                            onPress={() => setActivePicker({ weekday: day.weekday, idx, field: 'start_time' })}
+                            className="px-2.5 py-1.5 rounded-lg bg-cream border border-line"
+                          >
+                            <Text className="text-[13px] font-medium text-ink">{range.start_time}</Text>
+                          </TouchableOpacity>
                           <Text className="text-ink/40">–</Text>
-                          <DateTimePicker
-                            mode="time"
-                            is24Hour
-                            value={hmToDate(range.end_time)}
-                            onChange={(_, d) => d && updateRange(day.weekday, idx, 'end_time', dateToHm(d))}
-                          />
+                          <TouchableOpacity
+                            onPress={() => setActivePicker({ weekday: day.weekday, idx, field: 'end_time' })}
+                            className="px-2.5 py-1.5 rounded-lg bg-cream border border-line"
+                          >
+                            <Text className="text-[13px] font-medium text-ink">{range.end_time}</Text>
+                          </TouchableOpacity>
                           <TouchableOpacity onPress={() => removeRange(day.weekday, idx)} className="w-7 h-7 rounded-lg bg-cream border border-line items-center justify-center">
                             <Trash2 size={14} color="rgba(27,27,67,0.5)" />
                           </TouchableOpacity>
@@ -273,16 +280,18 @@ export default function MentorScheduleScreen() {
           </View>
         )}
 
+        {/* TODO: implement overrides tab */}
         {tab === 'overrides' && (
           <View>
             <TouchableOpacity className="border border-dashed border-purple-deep/40 bg-purple-100/30 py-3 rounded-2xl items-center flex-row justify-center gap-2">
               <Plus size={14} color="#3E1D87" />
               <Text className="text-purple-deep text-[12.5px] font-semibold">{t('mentor.schedule.add_override')}</Text>
             </TouchableOpacity>
-            <Text className="text-[12px] text-ink/45 text-center mt-8">Няма изключения</Text>
+            <Text className="text-[12px] text-ink/45 text-center mt-8">{t('mentor.schedule.no_overrides')}</Text>
           </View>
         )}
 
+        {/* TODO: implement blocked tab */}
         {tab === 'blocked' && (
           <View>
             <TouchableOpacity className="border border-dashed border-coral/40 bg-coral/5 py-3 rounded-2xl items-center flex-row justify-center gap-2">
@@ -295,13 +304,27 @@ export default function MentorScheduleScreen() {
                   <Text>🚫</Text>
                 </View>
                 <View className="flex-1">
-                  <Text className="text-[13px] font-semibold text-ink">{block.reason ?? 'Блокиран период'}</Text>
+                  <Text className="text-[13px] font-semibold text-ink">{block.reason ?? t('mentor.schedule.blocked_period')}</Text>
                   <Text className="text-[11px] text-ink/55">{new Date(block.start_at).toLocaleDateString('bg-BG')} – {new Date(block.end_at).toLocaleDateString('bg-BG')}</Text>
                 </View>
                 <TouchableOpacity><Trash2 size={16} color="rgba(27,27,67,0.4)" /></TouchableOpacity>
               </MCard>
             ))}
           </View>
+        )}
+
+        {activePicker && (
+          <DateTimePicker
+            mode="time"
+            is24Hour
+            value={hmToDate(
+              days.find((d) => d.weekday === activePicker.weekday)?.ranges[activePicker.idx]?.[activePicker.field] ?? '09:00'
+            )}
+            onChange={(event, d) => {
+              if (Platform.OS === 'android') setActivePicker(null);
+              if (event.type === 'set' && d) updateRange(activePicker.weekday, activePicker.idx, activePicker.field, dateToHm(d));
+            }}
+          />
         )}
       </ScrollView>
     </View>
