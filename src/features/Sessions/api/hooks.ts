@@ -96,7 +96,10 @@ export function useStartSession() {
   return useMutation({
     mutationFn: (sessionId: string) =>
       api.post<SessionRead>(`/sessions/${sessionId}/start`).then((r) => r.data),
-    onSuccess: (updated) => queryClient.setQueryData(sessionKeys.detail(updated.id), updated),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(sessionKeys.detail(updated.id), updated);
+      queryClient.invalidateQueries({ queryKey: sessionKeys.mentorSessions() });
+    },
   });
 }
 
@@ -105,6 +108,9 @@ export function useEndSession() {
   return useMutation({
     mutationFn: (sessionId: string) =>
       api.post<SessionRead>(`/sessions/${sessionId}/end`).then((r) => r.data),
-    onSuccess: (updated) => queryClient.setQueryData(sessionKeys.detail(updated.id), updated),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(sessionKeys.detail(updated.id), updated);
+      queryClient.invalidateQueries({ queryKey: sessionKeys.mentorSessions() });
+    },
   });
 }

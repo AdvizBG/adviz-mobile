@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Clipboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { PillTabs } from '../../../src/components/ui/PillTabs';
 import { MentorSessionRow } from '../../../src/features/MentorSessions/components/mentor-session-row';
 import { useMentorSessions, useStartSession, useEndSession } from '../../../src/features/Sessions/api/hooks';
 import { useAuthStore } from '../../../src/store/auth';
+import { useToast } from '../../../src/components/ui/ToastProvider';
 import type { SessionStatus } from '../../../src/lib/types';
 
 type Tab = 'upcoming' | 'past' | 'cancelled';
@@ -20,6 +21,7 @@ export default function MentorSessionsScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const { user } = useAuthStore();
+  const { show } = useToast();
   const { data: sessions = [] } = useMentorSessions();
   const startSession = useStartSession();
   const endSession = useEndSession();
@@ -29,9 +31,16 @@ export default function MentorSessionsScreen() {
   const HEADER_HEIGHT = insets.top + 58 + 52;
   const TAB_HEIGHT = 49 + (insets.bottom > 0 ? insets.bottom : 8);
 
+  const profileLink = `adviz.bg/mentors/${user?.id?.slice(0, 8)}`;
+
   function handleAction(sessionId: string, status: SessionStatus) {
-    if (status === 'live') endSession.mutate(sessionId);
-    else if (status === 'scheduled') startSession.mutate(sessionId);
+    const opts = {
+      onError: () => {
+        show({ tone: 'error', title: t('mentor.sessions.action_error') });
+      },
+    };
+    if (status === 'live') endSession.mutate(sessionId, opts);
+    else if (status === 'scheduled') startSession.mutate(sessionId, opts);
   }
 
   return (
@@ -43,7 +52,7 @@ export default function MentorSessionsScreen() {
         <PillTabs
           tabs={[
             { key: 'upcoming', label: t('mentee.bookings.tab_upcoming'), count: sessions.filter((s) => TAB_STATUS.upcoming.includes(s.status)).length },
-            { key: 'past', label: t('mentee.bookings.tab_past'), count: sessions.filter((s) => s.status === 'completed').length },
+            { key: 'past', label: t('mentee.bookings.tab_past'), count: sessions.filter((s) => TAB_STATUS.past.includes(s.status)).length },
             { key: 'cancelled', label: t('mentee.bookings.tab_cancelled'), count: sessions.filter((s) => TAB_STATUS.cancelled.includes(s.status)).length },
           ]}
           activeKey={tab}
@@ -66,8 +75,14 @@ export default function MentorSessionsScreen() {
             <Text className="text-[20px] font-light text-ink mt-4">{t('mentor.sessions.empty_title')}</Text>
             <Text className="text-[13px] text-ink/55 mt-2">{t('mentor.sessions.empty_subtitle')}</Text>
             <View className="mt-4 flex-row items-center gap-2 px-4 py-2 bg-white rounded-2xl border border-line">
-              <Text className="font-mono text-[11.5px] text-ink/70">adviz.bg/mentors/{user?.id?.slice(0, 8)}</Text>
-              <TouchableOpacity className="px-3 py-1.5 rounded-full bg-purple-deep">
+              <Text className="font-mono text-[11.5px] text-ink/70">{profileLink}</Text>
+              <TouchableOpacity
+                className="px-3 py-1.5 rounded-full bg-purple-deep"
+                onPress={() => {
+                  Clipboard.setString(profileLink);
+                  show({ tone: 'success', title: t('mentor.sessions.link_copied') });
+                }}
+              >
                 <Text className="text-[11px] font-semibold text-white">{t('mentor.sessions.copy_link')}</Text>
               </TouchableOpacity>
             </View>

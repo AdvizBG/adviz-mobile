@@ -14,7 +14,10 @@ export function MentorSessionRow({ session, onAction }: MentorSessionRowProps) {
 
   const actionLabel = session.status === 'live' ? 'Приключи' : session.status === 'scheduled' ? 'Започни' : 'Детайли';
   const actionStyle = session.status === 'live' ? 'bg-coral' : session.status === 'scheduled' ? 'bg-purple-deep' : 'bg-white border border-line-strong';
-  const actionTextStyle = session.status === 'completed' || session.status === 'cancelled' || session.status === 'no_show' ? 'text-ink' : 'text-white';
+  const actionTextStyle =
+    session.status === 'live' || session.status === 'scheduled'
+      ? 'text-white'
+      : 'text-ink';
 
   return (
     <MCard className="p-3 mt-2 flex-row items-start gap-3">
