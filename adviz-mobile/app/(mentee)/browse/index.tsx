@@ -92,7 +92,9 @@ export default function BrowseScreen() {
         data={mentors}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingTop: HEADER_HEIGHT + 8, paddingBottom: TAB_BAR_HEIGHT + 8, paddingHorizontal: 20 }}
-        renderItem={({ item }) => <MentorCard mentor={item} />}
+        renderItem={({ item, index }) => (
+          <MentorCard mentor={item} testID={index === 0 ? 'mentor-card-0' : undefined} />
+        )}
         onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
         onEndReachedThreshold={0.5}
         ListHeaderComponent={

@@ -106,6 +106,7 @@ export default function LoginScreen() {
                   {t('auth.login.email')}
                 </Text>
                 <TextInput
+                  testID="email-input"
                   className="px-3.5 py-3 rounded-xl border border-line-strong bg-white text-[14px] text-ink"
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -126,6 +127,7 @@ export default function LoginScreen() {
                 </Text>
                 <View style={{ position: 'relative' }}>
                   <TextInput
+                    testID="password-input"
                     className={`px-3.5 py-3 rounded-xl bg-white text-[14px] text-ink pr-12 ${
                       hasError ? 'border-2 border-coral' : 'border border-line-strong'
                     }`}
@@ -177,6 +179,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           <CTA
+            testID="login-cta"
             label={hasError ? t('auth.login.try_again') : t('auth.login.submit')}
             onPress={form.handleSubmit}
             loading={login.isPending}

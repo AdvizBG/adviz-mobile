@@ -13,13 +13,14 @@ function initials(name: string): string {
 interface MentorCardProps {
   mentor: MentorProfileRead;
   isOnlineToday?: boolean;
+  testID?: string;
 }
 
-export const MentorCard = React.memo(function MentorCard({ mentor, isOnlineToday }: MentorCardProps) {
+export const MentorCard = React.memo(function MentorCard({ mentor, isOnlineToday, testID }: MentorCardProps) {
   const name = mentor.full_name || 'Mentor';
   const price = parseFloat(mentor.hourly_price_eur).toFixed(0);
   return (
-    <TouchableOpacity onPress={() => router.push(`/(mentee)/browse/${mentor.id}` as never)}>
+    <TouchableOpacity testID={testID} onPress={() => router.push(`/(mentee)/browse/${mentor.id}` as never)}>
       <MCard className="p-3.5 flex-row items-start gap-3 mt-2">
         <MAvatar initials={initials(name)} color="#CBCBFF" size={56} online={isOnlineToday} />
         <View className="flex-1">
