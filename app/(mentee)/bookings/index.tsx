@@ -12,6 +12,16 @@ import type { SessionRead } from '../../../src/lib/types';
 
 type Tab = 'upcoming' | 'past' | 'cancelled';
 
+function groupByPeriod(sessions: SessionRead[]): { today: SessionRead[]; week: SessionRead[] } {
+  const now = new Date();
+  const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+  const weekEnd = new Date(now); weekEnd.setDate(now.getDate() + 7);
+  return {
+    today: sessions.filter((s) => new Date(s.scheduled_start) <= todayEnd),
+    week: sessions.filter((s) => new Date(s.scheduled_start) > todayEnd && new Date(s.scheduled_start) <= weekEnd),
+  };
+}
+
 export default function BookingsScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
@@ -25,6 +35,7 @@ export default function BookingsScreen() {
   const cancelled = sessions.filter((s) => s.status === 'cancelled' || s.status === 'no_show');
 
   const active = tab === 'upcoming' ? upcoming : tab === 'past' ? past : cancelled;
+  const grouped = groupByPeriod(active);
 
   const HEADER_HEIGHT = insets.top + 58 + 52 + 16;
   const TAB_HEIGHT = 49 + (insets.bottom > 0 ? insets.bottom : 8);
@@ -47,7 +58,7 @@ export default function BookingsScreen() {
       </View>
 
       <FlatList
-        data={active}
+        data={[...grouped.today, ...grouped.week]}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingTop: HEADER_HEIGHT, paddingBottom: TAB_HEIGHT + 8, paddingHorizontal: 20 }}
         renderItem={({ item }) => (

@@ -17,21 +17,25 @@ export function CancelSheet({ session, visible, onDismiss }: CancelSheetProps) {
   const { show } = useToast();
   const cancel = useCancelSession();
 
-  const price = parseFloat(session.price_eur);
+  const price = parseFloat(session.price_eur) || 0;
   const hoursUntil = (new Date(session.scheduled_start).getTime() - Date.now()) / 3_600_000;
+  const isAlreadyStarted = hoursUntil <= 0;
   const isLate = hoursUntil < 24;
   const refund = isLate ? price * 0.5 : price;
   const fee = isLate ? price * 0.5 : 0;
 
   async function handleCancel() {
-    await cancel.mutateAsync({ sessionId: session.id, body: {} });
-    onDismiss();
-    show({
-      tone: 'success',
-      title: t('mentee.bookings.cancelled_toast'),
-      body: t('mentee.bookings.refund_timeline', { amount: refund.toFixed(2) }),
-      action: { label: t('mentee.bookings.undo'), onPress: () => {} },
-    });
+    try {
+      await cancel.mutateAsync({ sessionId: session.id, body: {} });
+      onDismiss();
+      show({
+        tone: 'success',
+        title: t('mentee.bookings.cancelled_toast'),
+        body: t('mentee.bookings.refund_timeline', { amount: refund.toFixed(2) }),
+      });
+    } catch {
+      show({ tone: 'error', title: t('common.error') });
+    }
   }
 
   return (
@@ -42,9 +46,15 @@ export function CancelSheet({ session, visible, onDismiss }: CancelSheetProps) {
           <View className="w-14 h-14 rounded-2xl bg-amber-100 items-center justify-center self-center">
             <Text style={{ fontSize: 28 }}>⚠️</Text>
           </View>
-          <Text className="text-[19px] font-semibold text-ink text-center mt-3">
-            {t('mentee.bookings.cancel_title', { hours: Math.floor(hoursUntil) })}
-          </Text>
+          {isAlreadyStarted ? (
+            <Text className="text-[19px] font-semibold text-ink text-center mt-3">
+              {t('mentee.bookings.cannot_cancel_started')}
+            </Text>
+          ) : (
+            <Text className="text-[19px] font-semibold text-ink text-center mt-3">
+              {t('mentee.bookings.cancel_title', { hours: Math.floor(Math.max(0, hoursUntil)) })}
+            </Text>
+          )}
           <MCard className="mt-3 p-4 bg-cream border-line">
             <View className="flex-row justify-between">
               <Text className="text-[12px] text-ink/70">Платено</Text>
@@ -66,6 +76,7 @@ export function CancelSheet({ session, visible, onDismiss }: CancelSheetProps) {
             label={t('mentee.bookings.cancel_cta', { amount: fee.toFixed(2) })}
             onPress={handleCancel}
             loading={cancel.isPending}
+            disabled={isAlreadyStarted}
             className="mt-4 bg-coral"
           />
           <TouchableOpacity onPress={onDismiss} className="mt-3 py-3 items-center">
