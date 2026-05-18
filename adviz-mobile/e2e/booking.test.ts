@@ -14,7 +14,9 @@ describe('Booking flow', () => {
     await detoxExpect(element(by.text('Запази час'))).toBeVisible();
   });
 
-  it('booking CTA disabled when offline — stub test', async () => {
+  it('booking CTA is visible (offline simulation requires network conditioning — deferred)', async () => {
+    // Full offline test requires Detox network conditioning setup in CI
+    // This verifies the booking UI renders; offline behavior is tested via unit tests
     await detoxExpect(element(by.text('Запази час'))).toBeVisible();
   });
 });
