@@ -7,15 +7,43 @@
     "scheme": "adviz",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
-    "splash": { "image": "./assets/splash-icon.png", "resizeMode": "contain", "backgroundColor": "#FAF7F2" },
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FAF7F2"
+    },
     "plugins": [
       "expo-router",
       "expo-secure-store",
       "expo-dev-client",
-      ["@stripe/stripe-react-native", { "merchantIdentifier": "merchant.bg.adviz" }]
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.bg.adviz"
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-font"
     ],
-    "ios": { "supportsTablet": false, "bundleIdentifier": "bg.adviz.mobile" },
-    "android": { "package": "bg.adviz.mobile", "adaptiveIcon": { "foregroundImage": "./assets/adaptive-icon.png", "backgroundColor": "#FAF7F2" } },
-    "web": { "bundler": "metro" }
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "bg.adviz.mobile"
+    },
+    "android": {
+      "package": "bg.adviz.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FAF7F2"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8d4ac7b5-f4c1-40a5-85b0-3a54f047c0af"
+      }
+    }
   }
 }
