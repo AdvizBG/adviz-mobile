@@ -11,7 +11,7 @@ import { MCard } from '../../../../src/components/ui/MCard';
 import { Eyebrow } from '../../../../src/components/ui/Eyebrow';
 import { SlotPicker } from '../../../../src/features/Mentors/components/slot-picker';
 import { useMentor } from '../../../../src/features/Mentors/api/hooks';
-import { useCreateSession, useCreatePayment, useSessionPaidStatus } from '../../../../src/features/Sessions/api/hooks';
+import { useCreateSession, useCreatePayment, useSessionPaidStatus, useCancelSession } from '../../../../src/features/Sessions/api/hooks';
 import { useAuthStore } from '../../../../src/store/auth';
 import { useToast } from '../../../../src/components/ui/ToastProvider';
 import { useStripe } from '@stripe/stripe-react-native';
@@ -29,6 +29,7 @@ export default function BookScreen() {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const createSession = useCreateSession();
   const createPayment = useCreatePayment();
+  const cancelSession = useCancelSession();
 
   const [step, setStep] = useState<Step>(0);
   const [selectedSlot, setSelectedSlot] = useState<SlotRead | null>(null);
@@ -41,9 +42,14 @@ export default function BookScreen() {
   const [paymentDeclined, setPaymentDeclined] = useState<{ code: string; message: string } | null>(null);
   const [pollEnabled, setPollEnabled] = useState(false);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    return () => { if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current); };
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+    };
   }, []);
 
   const { data: sessionPaid } = useSessionPaidStatus(sessionId ?? '', pollEnabled);
@@ -56,8 +62,8 @@ export default function BookScreen() {
     }
   }, [sessionPaid?.is_paid, sessionId]);
 
-  const price = mentor ? parseFloat(mentor.hourly_price_eur) : 0;
-  const sessionPrice = Math.round(price * 0.1);
+  const price = mentor ? (parseFloat(mentor.hourly_price_eur) || 0) : 0;
+  const sessionPrice = Math.round(price * 0.1 * 100) / 100;
 
   const CONTENT_TOP = insets.top + 110 + 86;
   const CTA_BOTTOM = insets.bottom + 83 + 60;
@@ -82,7 +88,8 @@ export default function BookScreen() {
   }
 
   useEffect(() => {
-    if (step !== 3 || !sessionId || !user) return;
+    if (step !== 3 || !sessionId || !user || createPayment.isPending) return;
+    const userEmail = user.email;
     let cancelled = false;
     setSheetReady(false);
     setSheetInitError(null);
@@ -95,7 +102,7 @@ export default function BookScreen() {
         const { error: initErr } = await initPaymentSheet({
           paymentIntentClientSecret: payment.client_secret,
           merchantDisplayName: 'Adviz',
-          defaultBillingDetails: { email: user.email },
+          defaultBillingDetails: { email: userEmail },
         });
         if (cancelled) return;
         if (initErr) {
@@ -109,8 +116,7 @@ export default function BookScreen() {
     })();
 
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, sessionId]);
+  }, [step, sessionId, user?.email, initPaymentSheet, t]);
 
   async function handlePresent() {
     if (!sheetReady) return;
@@ -120,8 +126,10 @@ export default function BookScreen() {
     setPresentLoading(false);
 
     if (!error) {
+      if (!mountedRef.current) return;
       setPollEnabled(true);
       pollTimeoutRef.current = setTimeout(() => {
+        if (!mountedRef.current) return;
         setPollEnabled(false);
         show({ tone: 'info', title: t('mentee.booking.payment_processing') });
         router.replace(`/(mentee)/bookings/${sessionId}` as never);
@@ -150,7 +158,16 @@ export default function BookScreen() {
     <View className="flex-1 bg-cream">
       <AppHeader
         title={t('mentee.booking.title')}
-        right={<TouchableOpacity onPress={() => router.back()}><X size={22} color="#1B1B43" /></TouchableOpacity>}
+        right={
+          <TouchableOpacity onPress={async () => {
+            if (sessionId && step === 3) {
+              await cancelSession.mutateAsync({ sessionId, body: {} }).catch(() => {});
+            }
+            router.back();
+          }}>
+            <X size={22} color="#1B1B43" />
+          </TouchableOpacity>
+        }
       />
 
       {/* Step header */}
