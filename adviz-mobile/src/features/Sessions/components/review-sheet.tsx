@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, Modal } from 'react-native';
 import { Star } from 'lucide-react-native';
 import { CTA } from '../../../components/ui/CTA';
 import { useCreateReview } from '../api/hooks';
+import { useToast } from '../../../components/ui/ToastProvider';
 import { useTranslation } from 'react-i18next';
 
 interface ReviewSheetProps {
@@ -13,14 +14,19 @@ interface ReviewSheetProps {
 
 export function ReviewSheet({ sessionId, visible, onDismiss }: ReviewSheetProps) {
   const { t } = useTranslation();
+  const { show } = useToast();
   const [rating, setRating] = useState(0);
   const [body, setBody] = useState('');
   const createReview = useCreateReview();
 
   async function handleSubmit() {
     if (rating === 0 || body.length < 20) return;
-    await createReview.mutateAsync({ sessionId, body: { rating, body } });
-    onDismiss();
+    try {
+      await createReview.mutateAsync({ sessionId, body: { rating, body } });
+      onDismiss();
+    } catch {
+      show({ tone: 'error', title: t('common.error') });
+    }
   }
 
   return (
@@ -43,6 +49,7 @@ export function ReviewSheet({ sessionId, visible, onDismiss }: ReviewSheetProps)
             onChangeText={setBody}
             multiline
             numberOfLines={4}
+            maxLength={500}
             style={{ textAlignVertical: 'top' }}
           />
           <Text className="text-[10.5px] text-ink/45 text-right mt-1">{body.length}/500</Text>

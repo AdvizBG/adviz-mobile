@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -25,8 +25,9 @@ export default function SessionConfirmationScreen() {
   const joinEnabled = minutesUntil <= 5;
 
   function formatCountdown(mins: number): string {
-    const h = Math.floor(mins / 60);
-    const m = Math.floor(mins % 60);
+    const clamped = Math.max(0, mins);
+    const h = Math.floor(clamped / 60);
+    const m = Math.floor(clamped % 60);
     return h > 0 ? `${h}${t('common.hours')} ${m}${t('common.min')}` : `${m}${t('common.min')}`;
   }
 
@@ -82,8 +83,10 @@ export default function SessionConfirmationScreen() {
       </ScrollView>
 
       <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 20, paddingBottom: insets.bottom + 20, borderTopWidth: 1, borderTopColor: '#ECE9E2', backgroundColor: 'white' }}>
-        {joinEnabled ? (
-          <CTA label={t('mentee.bookings.join')} onPress={() => {}} />
+        {joinEnabled && session.recording_url ? (
+          <CTA label={t('mentee.bookings.join')} onPress={() => Linking.openURL(session.recording_url!)} />
+        ) : joinEnabled ? (
+          <CTA label={t('mentee.bookings.join')} disabled />
         ) : (
           <TouchableOpacity disabled className="w-full py-3.5 rounded-2xl bg-slate-100 items-center flex-row justify-center gap-2">
             <Video size={16} color="rgba(27,27,67,0.4)" />
