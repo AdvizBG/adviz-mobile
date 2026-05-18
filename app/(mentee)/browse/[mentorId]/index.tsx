@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Star, Share2 } from 'lucide-react-native';
+import { useNetInfo } from '@react-native-community/netinfo';
 import { AppHeader } from '../../../../src/components/ui/AppHeader';
 import { MAvatar } from '../../../../src/components/ui/MAvatar';
 import { MCard } from '../../../../src/components/ui/MCard';
@@ -22,6 +23,8 @@ export default function MentorProfileScreen() {
   const { t } = useTranslation();
   const { data: mentor, isLoading } = useMentor(mentorId);
   const [aboutExpanded, setAboutExpanded] = useState(false);
+  const netInfo = useNetInfo();
+  const isOffline = netInfo.isConnected === false;
 
   if (isLoading || !mentor) {
     return <View className="flex-1 bg-cream items-center justify-center"><Text className="text-ink/50">{t('common.loading')}</Text></View>;
@@ -107,8 +110,9 @@ export default function MentorProfileScreen() {
           </View>
         </View>
         <CTA
-          label={t('mentee.mentor_profile.book')}
+          label={isOffline ? t('mentee.mentor_profile.offline_disabled') : t('mentee.mentor_profile.book')}
           onPress={() => router.push(`/(mentee)/browse/${mentorId}/book` as never)}
+          disabled={isOffline}
           style={{ flex: 1 }}
         />
       </View>
