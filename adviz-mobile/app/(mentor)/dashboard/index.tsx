@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -19,28 +19,29 @@ export default function MentorDashboardScreen() {
 
   const nextSession = sessions[0];
   const TAB_HEIGHT = 49 + (insets.bottom > 0 ? insets.bottom : 8);
+  const firstName = user?.full_name?.split(' ').filter(Boolean)[0] || user?.username || '';
+  const avatarInitials = user?.full_name?.split(' ').filter(Boolean).map((n) => n[0]).join('').slice(0, 2) || '?';
 
   return (
-    <ScrollView
-      className="flex-1 bg-cream"
-      contentContainerStyle={{ paddingTop: insets.top + 116, paddingBottom: TAB_HEIGHT + 8, paddingHorizontal: 20 }}
-    >
-      {/* Header */}
-      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, paddingTop: insets.top, paddingHorizontal: 20, paddingBottom: 12, zIndex: 10 }}>
+    <View className="flex-1 bg-cream">
+      {/* Header — outside ScrollView so it stays fixed */}
+      <View style={{ paddingTop: insets.top, paddingHorizontal: 20, paddingBottom: 12, backgroundColor: '#FAF7F2' }}>
         <View className="flex-row items-center justify-between">
           <View>
             <Text className="text-[12px] text-ink/55">{t('mentor.dashboard.greeting')}</Text>
             <Text style={{ fontSize: 22, letterSpacing: 0.5, color: '#1B1B43', lineHeight: 24 }}>
-              {user?.full_name.split(' ')[0]}
+              {firstName}
             </Text>
           </View>
           <View className="w-9 h-9 rounded-full bg-purple-200 items-center justify-center">
-            <Text className="font-semibold text-ink text-[13px]">
-              {user?.full_name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
-            </Text>
+            <Text className="font-semibold text-ink text-[13px]">{avatarInitials}</Text>
           </View>
         </View>
       </View>
+
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: TAB_HEIGHT + 8, paddingHorizontal: 20, paddingTop: 8 }}
+      >
 
       {/* Next session hero */}
       {nextSession && (
@@ -55,7 +56,10 @@ export default function MentorDashboardScreen() {
             <Text className="text-[13.5px] font-medium text-white leading-snug" numberOfLines={2}>{nextSession.topic}</Text>
             <View className="flex-row gap-2 mt-3">
               <TouchableOpacity
-                onPress={() => startSession.mutate(nextSession.id)}
+                disabled={startSession.isPending}
+                onPress={() => startSession.mutate(nextSession.id, {
+                  onError: () => Alert.alert(t('common.error'), t('mentor.dashboard.start_session_error')),
+                })}
                 className="px-3 py-2 rounded-xl bg-white flex-row items-center gap-1.5"
               >
                 <Play size={12} color="#3E1D87" fill="#3E1D87" />
@@ -115,6 +119,7 @@ export default function MentorDashboardScreen() {
           </View>
         )}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
