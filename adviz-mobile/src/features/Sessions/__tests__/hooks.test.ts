@@ -49,6 +49,14 @@ test('useCreatePayment calls POST /payments/sessions/:id', async () => {
   expect(api.post).toHaveBeenCalledWith('/payments/sessions/s1', null, expect.any(Object));
 });
 
+test('useCreatePayment handles error correctly', async () => {
+  (api.post as jest.Mock).mockRejectedValue(new Error('Payment failed'));
+  const { result } = renderHook(() => useCreatePayment(), { wrapper: createQueryWrapper() });
+  result.current.mutate('s1');
+  await waitFor(() => expect(result.current.isError).toBe(true));
+  expect(result.current.error).toBeTruthy();
+});
+
 test('useCancelSession calls POST /sessions/:id/cancel', async () => {
   const cancelled = { ...session, status: 'cancelled' };
   (api.post as jest.Mock).mockResolvedValue({ data: cancelled });
