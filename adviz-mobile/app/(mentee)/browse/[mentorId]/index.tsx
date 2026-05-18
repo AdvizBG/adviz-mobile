@@ -7,30 +7,40 @@ import { Star, Share2 } from 'lucide-react-native';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { AppHeader } from '../../../../src/components/ui/AppHeader';
 import { MAvatar } from '../../../../src/components/ui/MAvatar';
-import { MCard } from '../../../../src/components/ui/MCard';
 import { Eyebrow } from '../../../../src/components/ui/Eyebrow';
 import { TopicChip } from '../../../../src/components/ui/TopicChip';
 import { CTA } from '../../../../src/components/ui/CTA';
 import { useMentor } from '../../../../src/features/Mentors/api/hooks';
 
-function initials(name: string) {
-  return name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase();
+function initials(name: string): string {
+  return name.split(' ').filter(Boolean).map((n) => n[0]).slice(0, 2).join('').toUpperCase();
 }
 
 export default function MentorProfileScreen() {
   const { mentorId } = useLocalSearchParams<{ mentorId: string }>();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
-  const { data: mentor, isLoading } = useMentor(mentorId);
+  const { data: mentor, isLoading, isError, refetch } = useMentor(mentorId);
   const [aboutExpanded, setAboutExpanded] = useState(false);
   const netInfo = useNetInfo();
   const isOffline = netInfo.isConnected === false;
+
+  if (isError) {
+    return (
+      <View className="flex-1 bg-cream items-center justify-center gap-3">
+        <Text className="text-ink/50">{t('common.error')}</Text>
+        <TouchableOpacity onPress={() => refetch()} className="px-4 py-2 rounded-xl bg-purple-deep">
+          <Text className="text-white font-semibold">{t('common.retry')}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   if (isLoading || !mentor) {
     return <View className="flex-1 bg-cream items-center justify-center"><Text className="text-ink/50">{t('common.loading')}</Text></View>;
   }
 
-  const price = parseFloat(mentor.hourly_price_eur);
+  const price = parseFloat(mentor.hourly_price_eur) || 0;
   const firstSessionPrice = Math.round(price * 0.1);
   const STICKY_CTA_HEIGHT = 96;
 
