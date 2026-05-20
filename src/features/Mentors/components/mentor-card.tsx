@@ -17,12 +17,13 @@ interface MentorCardProps {
 }
 
 export const MentorCard = React.memo(function MentorCard({ mentor, isOnlineToday, testID }: MentorCardProps) {
-  const name = mentor.full_name || 'Mentor';
+  const name = mentor.full_name || mentor.headline || 'Mentor';
   const price = parseFloat(mentor.hourly_price_eur).toFixed(0);
+  const avatarUri = `https://i.pravatar.cc/100?u=${mentor.id}`;
   return (
     <TouchableOpacity testID={testID} onPress={() => router.push(`/(mentee)/browse/${mentor.id}` as never)}>
       <MCard className="p-3.5 flex-row items-start gap-3 mt-2">
-        <MAvatar initials={initials(name)} color="#CBCBFF" size={56} online={isOnlineToday} />
+        <MAvatar initials={initials(name)} color="#CBCBFF" size={56} uri={avatarUri} online={isOnlineToday} />
         <View className="flex-1">
           <View className="flex-row justify-between">
             <View className="flex-1 mr-2">

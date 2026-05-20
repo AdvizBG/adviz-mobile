@@ -1,17 +1,21 @@
-import { View, Text, ViewStyle } from 'react-native';
+import { useState } from 'react';
+import { View, Text, Image, ViewStyle } from 'react-native';
 
 interface MAvatarProps {
   initials: string;
   color: string;
   size: number;
+  uri?: string;
   online?: boolean;
   ring?: boolean;
   style?: ViewStyle;
 }
 
-export function MAvatar({ initials, color, size, online, ring, style }: MAvatarProps) {
+export function MAvatar({ initials, color, size, uri, online, ring, style }: MAvatarProps) {
   const fontSize = Math.round(size * 0.36);
   const dotSize = Math.round(size * 0.22);
+  const [imgFailed, setImgFailed] = useState(false);
+  const showImage = !!uri && !imgFailed;
 
   return (
     <View
@@ -23,6 +27,7 @@ export function MAvatar({ initials, color, size, online, ring, style }: MAvatarP
           backgroundColor: color,
           alignItems: 'center',
           justifyContent: 'center',
+          overflow: 'hidden',
           ...(ring
             ? {
                 shadowColor: '#FAF7F2',
@@ -36,7 +41,15 @@ export function MAvatar({ initials, color, size, online, ring, style }: MAvatarP
         style,
       ]}
     >
-      <Text style={{ fontSize, fontWeight: '600', color: '#1B1B43' }}>{initials}</Text>
+      {showImage ? (
+        <Image
+          source={{ uri }}
+          style={{ width: size, height: size, borderRadius: size / 2 }}
+          onError={() => setImgFailed(true)}
+        />
+      ) : (
+        <Text style={{ fontSize, fontWeight: '600', color: '#1B1B43' }}>{initials}</Text>
+      )}
       {online && (
         <View
           style={{

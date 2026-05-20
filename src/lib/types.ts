@@ -68,6 +68,9 @@ export interface MentorProfileRead {
   id: string;
   user_id: string;
   status: MentorStatus;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string;
   headline: string;
   about: string;
   topics: string[];
@@ -78,7 +81,6 @@ export interface MentorProfileRead {
   total_sessions: number;
   avg_rating: number | null;
   since: string;
-  full_name: string;   // NOTE: backend prerequisite — must be added to MentorProfile model
 }
 
 export interface MentorProfileUpdate {
@@ -147,7 +149,7 @@ export interface PaymentIntentResponse {
 
 // ── Auth (users-ms — inferred, no OpenAPI available) ─────────────────────────
 export interface LoginRequest {
-  email: string;
+  username: string;
   password: string;
 }
 
@@ -158,6 +160,7 @@ export interface LoginResponse {
 }
 
 export interface RegisterRequest {
+  username: string;
   full_name: string;
   email: string;
   password: string;
