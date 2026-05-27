@@ -84,7 +84,7 @@ export default function BrowseScreen() {
       {isOffline && (
         <View style={{ position: 'absolute', top: insets.top + 116, left: 0, right: 0, zIndex: 20, backgroundColor: '#2D2D5C', padding: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text className="text-white text-[12px] font-semibold">{t('mentee.browse.offline_banner')}</Text>
-          <TouchableOpacity><Text className="text-amber-400 text-[12px] font-semibold">Retry</Text></TouchableOpacity>
+          <TouchableOpacity><Text className="text-amber-400 text-[12px] font-semibold">{t('common.retry')}</Text></TouchableOpacity>
         </View>
       )}
 

@@ -56,6 +56,7 @@
       "per_hour": "/ hr",
       "about": "About",
       "show_more": "Show more",
+      "show_less": "Show less",
       "works_on": "Works on",
       "reviews": "Reviews",
       "all_reviews": "See all",
@@ -65,6 +66,7 @@
     },
     "booking": {
       "title": "Book a session",
+      "step_counter": "Step {{current}}/{{total}}",
       "step_slot": "Pick a time",
       "step_agenda": "Agenda",
       "step_review": "Review",
@@ -74,9 +76,18 @@
       "topic_label": "Session topic",
       "topic_placeholder": "What do you want to achieve?",
       "notes_label": "Notes (optional)",
+      "notes_hint": "Detailed notes help your mentor prepare better for the session.",
+      "available_slots": "Available times",
+      "date_label": "Date",
+      "time_label": "Time",
+      "review_topic_label": "Topic",
+      "edit": "Edit",
+      "session_label": "Session",
+      "discount_label": "First session 90% off",
+      "total_label": "Total",
       "back": "Back",
       "continue": "Continue",
-      "pay_cta": "Confirm · €{{amount}}",
+      "pay_cta": "Pay · €{{amount}}",
       "retry_cta": "Try again · €{{amount}}",
       "payment_secured": "Payments secured",
       "payment_secured_by": "by",
@@ -88,7 +99,8 @@
       "card_declined": "Your card was declined",
       "slot_hold": "Your slot is held for {{minutes}} min.",
       "payment_processing": "Payment is processing",
-      "session_confirmed": "Session confirmed!"
+      "session_confirmed": "Session confirmed!",
+      "error_no_stripe": "This mentor hasn't set up payments yet"
     },
     "bookings": {
       "title": "Bookings",
@@ -101,7 +113,7 @@
       "link_unlocks": "Link unlocks in {{time}}",
       "cancel": "Cancel",
       "keep": "Keep session",
-      "cancel_title": "Cancel within {{hours}}h?",
+      "cancel_title": "Cancel within {{time}}?",
       "refund_breakdown": "Refund breakdown",
       "cancel_cta": "Yes, cancel · −€{{amount}}",
       "cancelled_toast": "Session cancelled",
@@ -168,8 +180,10 @@
       "end": "End",
       "details": "Details",
       "empty_title": "Your schedule is clear!",
-      "empty_subtitle": "Share your profile and attract mentees",
-      "copy_link": "Copy"
+      "empty_subtitle": "Share your profile and attract learners",
+      "copy_link": "Copy",
+      "link_copied": "Copied!",
+      "action_error": "Action failed"
     },
     "profile": {
       "title": "Profile",
@@ -199,6 +213,7 @@
     "close": "Close",
     "today": "Today",
     "min": "min",
-    "hours": "h"
+    "hours": "h",
+    "days": "d"
   }
 }

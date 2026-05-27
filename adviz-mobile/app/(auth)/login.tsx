@@ -33,7 +33,7 @@ export default function LoginScreen() {
     validators: { onChange: loginSchema },
     onSubmit: async ({ value }) => {
       try {
-        await login.mutateAsync(value);
+        await login.mutateAsync({ username: value.email, password: value.password });
         // navigation handled by root auth guard
       } catch (err: unknown) {
         const data = (err as { response?: { data?: { remaining_attempts?: number } } })?.response
@@ -110,6 +110,8 @@ export default function LoginScreen() {
                   className="px-3.5 py-3 rounded-xl border border-line-strong bg-white text-[14px] text-ink"
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  autoComplete="email"
+                  textContentType="emailAddress"
                   value={field.state.value}
                   onChangeText={field.handleChange}
                   onBlur={field.handleBlur}
@@ -132,6 +134,8 @@ export default function LoginScreen() {
                       hasError ? 'border-2 border-coral' : 'border border-line-strong'
                     }`}
                     secureTextEntry={!showPwd}
+                    autoComplete="current-password"
+                    textContentType="password"
                     value={field.state.value}
                     onChangeText={(v) => {
                       field.handleChange(v);

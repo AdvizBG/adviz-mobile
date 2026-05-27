@@ -21,6 +21,14 @@ export function CancelSheet({ session, visible, onDismiss }: CancelSheetProps) {
   const hoursUntil = (new Date(session.scheduled_start).getTime() - Date.now()) / 3_600_000;
   const isAlreadyStarted = hoursUntil <= 0;
   const isLate = hoursUntil < 24;
+
+  function formatTimeUntil(h: number): string {
+    const clamped = Math.max(0, h);
+    const d = Math.floor(clamped / 24);
+    const rem = Math.floor(clamped % 24);
+    if (d > 0) return rem > 0 ? `${d}${t('common.days')} ${rem}${t('common.hours')}` : `${d}${t('common.days')}`;
+    return `${Math.floor(clamped)}${t('common.hours')}`;
+  }
   const refund = isLate ? price * 0.5 : price;
   const fee = isLate ? price * 0.5 : 0;
 
@@ -52,7 +60,7 @@ export function CancelSheet({ session, visible, onDismiss }: CancelSheetProps) {
             </Text>
           ) : (
             <Text className="text-[19px] font-semibold text-ink text-center mt-3">
-              {t('mentee.bookings.cancel_title', { hours: Math.floor(Math.max(0, hoursUntil)) })}
+              {t('mentee.bookings.cancel_title', { time: formatTimeUntil(hoursUntil) })}
             </Text>
           )}
           <MCard className="mt-3 p-4 bg-cream border-line">

@@ -7,8 +7,13 @@ export function useLogin() {
   const setAuth = useAuthStore((s) => s.setAuth);
   return useMutation({
     mutationFn: async (data: LoginRequest) => {
-      const res = await api.post<LoginResponse>('/auth/login', data);
-      const meRes = await api.get<User>('/users/me', {
+      const form = new URLSearchParams();
+      form.append('username', data.username);
+      form.append('password', data.password);
+      const res = await api.post<LoginResponse>('/auth/token', form.toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+      const meRes = await api.get<User>('/users/@me/get', {
         headers: { Authorization: `Bearer ${res.data.access_token}` },
       });
       return {
@@ -24,6 +29,6 @@ export function useLogin() {
 export function useRegister() {
   return useMutation({
     mutationFn: (data: RegisterRequest) =>
-      api.post<User>('/users', data).then((r) => r.data),
+      api.post<User>('/users/', { ...data, username: data.email }).then((r) => r.data),
   });
 }

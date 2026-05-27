@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useMentorAvailability } from '../api/hooks';
 import type { SlotRead } from '../../../lib/types';
 
@@ -49,10 +50,24 @@ export function SlotPicker({ mentorId, onSelect, selectedSlot }: SlotPickerProps
     weekEnd.toISOString(),
   );
 
+  const { t } = useTranslation();
+  const autoSelectedRef = useRef(false);
+
   const slotsByDay = groupSlotsByDay(slots);
   const days = getWeekDays(weekStart);
   const tzOffset = -new Date().getTimezoneOffset() / 60;
   const tzLabel = `UTC${tzOffset >= 0 ? '+' : ''}${tzOffset}`;
+
+  useEffect(() => {
+    if (autoSelectedRef.current || !slots.length) return;
+    autoSelectedRef.current = true;
+    const grouped = groupSlotsByDay(slots);
+    const firstDay = Object.keys(grouped).sort()[0];
+    if (!firstDay) return;
+    setSelectedDay(firstDay);
+    const firstSlot = grouped[firstDay][0];
+    if (firstSlot) onSelect(firstSlot);
+  }, [slots, onSelect]);
 
   return (
     <ScrollView showsVerticalScrollIndicator={false}>
@@ -96,7 +111,7 @@ export function SlotPicker({ mentorId, onSelect, selectedSlot }: SlotPickerProps
       {/* Slots for selected day */}
       {selectedDay && (
         <>
-          <Text className="text-[12.5px] font-semibold text-ink/65 mt-4 mb-2">Свободни часове</Text>
+          <Text className="text-[12.5px] font-semibold text-ink/65 mt-4 mb-2">{t('mentee.booking.available_slots')}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {(slotsByDay[selectedDay] ?? []).map((slot) => {
               const isSelected = selectedSlot?.start === slot.start;
@@ -116,7 +131,7 @@ export function SlotPicker({ mentorId, onSelect, selectedSlot }: SlotPickerProps
 
       {/* Timezone notice */}
       <View className="mt-4 flex-row items-center gap-2 px-3 py-2.5 rounded-xl bg-purple-100/60">
-        <Text className="text-[11.5px] text-purple-deep font-medium">Times shown in your local time ({tzLabel})</Text>
+        <Text className="text-[11.5px] text-purple-deep font-medium">{t('mentee.booking.slot_timezone', { tz: tzLabel })}</Text>
       </View>
     </ScrollView>
   );

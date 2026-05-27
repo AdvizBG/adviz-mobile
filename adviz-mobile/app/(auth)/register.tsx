@@ -52,6 +52,8 @@ export default function RegisterScreen() {
                         secureTextEntry={name === 'password' || name === 'confirm_password'}
                         keyboardType={name === 'email' ? 'email-address' : 'default'}
                         autoCapitalize={name === 'email' || name === 'password' || name === 'confirm_password' ? 'none' : 'words'}
+                        autoComplete={name === 'email' ? 'email' : name === 'password' ? 'new-password' : name === 'confirm_password' ? 'new-password' : 'name'}
+                        textContentType={name === 'email' ? 'emailAddress' : name === 'password' ? 'newPassword' : name === 'confirm_password' ? 'newPassword' : 'name'}
                         value={field.state.value}
                         onChangeText={field.handleChange}
                         onBlur={field.handleBlur}

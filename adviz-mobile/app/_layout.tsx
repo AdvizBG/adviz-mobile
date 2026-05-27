@@ -27,7 +27,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     const inAuth = segments[0] === '(auth)';
     const inMentor = segments[0] === '(mentor)';
     const inMentee = segments[0] === '(mentee)';
-    const mentorUser = isMentor(scopes);
+    const mentorUser = isMentor(scopes ?? []);
 
     if (!token && !inAuth) {
       router.replace('/(auth)/login');
