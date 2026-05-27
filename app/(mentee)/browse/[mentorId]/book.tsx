@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, useFocusEffect, useNavigation } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react-native';
 import { AppHeader } from '../../../../src/components/ui/AppHeader';
@@ -17,7 +17,7 @@ import { useToast } from '../../../../src/components/ui/ToastProvider';
 import { useStripe } from '@stripe/stripe-react-native';
 import type { SlotRead } from '../../../../src/lib/types';
 
-type Step = 0 | 1 | 2 | 3;
+type Step = 0 | 1 | 2;
 
 export default function BookScreen() {
   const { mentorId } = useLocalSearchParams<{ mentorId: string }>();
@@ -68,91 +68,104 @@ export default function BookScreen() {
   const CONTENT_TOP = insets.top + 110 + 86;
   const CTA_BOTTOM = insets.bottom + 83 + 60;
 
-  async function handleGoToPayment() {
+  async function handlePay() {
     if (!selectedSlot || !user || !mentor) return;
-    try {
-      const session = await createSession.mutateAsync({
-        mentor_id: mentor.user_id,
-        mentee_id: user.id,
-        scheduled_start: selectedSlot.start,
-        scheduled_end: selectedSlot.end,
-        topic,
-        agenda: notes || null,
-        price_eur: sessionPrice.toFixed(2),
-      });
-      setSessionId(session.id);
-      setStep(3);
-    } catch {
-      show({ tone: 'error', title: t('common.error') });
-    }
-  }
 
-  useEffect(() => {
-    if (step !== 3 || !sessionId || !user || createPayment.isPending) return;
-    const userEmail = user.email;
-    let cancelled = false;
-    setSheetReady(false);
-    setSheetInitError(null);
-
-    (async () => {
-      try {
-        const payment = await createPayment.mutateAsync(sessionId);
-        if (cancelled) return;
-
-        const { error: initErr } = await initPaymentSheet({
-          paymentIntentClientSecret: payment.client_secret,
-          merchantDisplayName: 'Adviz',
-          defaultBillingDetails: { email: userEmail },
-        });
-        if (cancelled) return;
-        if (initErr) {
-          setSheetInitError(initErr.message);
-        } else {
-          setSheetReady(true);
-        }
-      } catch {
-        if (!cancelled) setSheetInitError(t('common.error'));
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [step, sessionId, user?.email, initPaymentSheet, t]);
-
-  async function handlePresent() {
-    if (!sheetReady) return;
-    setPaymentDeclined(null);
-    setPresentLoading(true);
-    const { error } = await presentPaymentSheet();
-    setPresentLoading(false);
-
-    if (!error) {
-      if (!mountedRef.current) return;
-      setPollEnabled(true);
-      pollTimeoutRef.current = setTimeout(() => {
+    // Retry path: sheet already initialised, just re-present
+    if (sheetReady) {
+      setPaymentDeclined(null);
+      setPresentLoading(true);
+      const { error } = await presentPaymentSheet();
+      setPresentLoading(false);
+      if (!error) {
         if (!mountedRef.current) return;
-        setPollEnabled(false);
-        show({ tone: 'info', title: t('mentee.booking.payment_processing') });
-        router.replace(`/(mentee)/bookings/${sessionId}` as never);
-      }, 30_000);
+        setPollEnabled(true);
+        pollTimeoutRef.current = setTimeout(() => {
+          if (!mountedRef.current) return;
+          setPollEnabled(false);
+          show({ tone: 'info', title: t('mentee.booking.payment_processing') });
+          router.replace(`/(mentee)/bookings/${sessionId}` as never);
+        }, 30_000);
+      } else if (error.code !== 'Canceled') {
+        setPaymentDeclined({ code: error.code, message: error.message });
+      }
       return;
     }
 
-    if (error.code !== 'Canceled') {
-      setPaymentDeclined({ code: error.code, message: error.message });
-    }
-  }
-
-  async function handleRetry() {
     setPaymentDeclined(null);
-    await handlePresent();
+    setSheetInitError(null);
+    setPresentLoading(true);
+
+    try {
+      // Create session on first attempt
+      let sid = sessionId;
+      if (!sid) {
+        const session = await createSession.mutateAsync({
+          mentor_id: mentor.user_id,
+          mentee_id: user.id,
+          scheduled_start: selectedSlot.start,
+          scheduled_end: selectedSlot.end,
+          topic,
+          agenda: notes || null,
+          price_eur: sessionPrice.toFixed(2),
+        });
+        sid = session.id;
+        setSessionId(sid);
+      }
+
+      const payment = await createPayment.mutateAsync(sid);
+      const { error: initErr } = await initPaymentSheet({
+        paymentIntentClientSecret: payment.client_secret,
+        merchantDisplayName: 'Adviz',
+        defaultBillingDetails: { email: user.email },
+      });
+
+      if (initErr) {
+        setSheetInitError(initErr.message);
+        setPresentLoading(false);
+        return;
+      }
+
+      setSheetReady(true);
+      const { error } = await presentPaymentSheet();
+      setPresentLoading(false);
+
+      if (!error) {
+        if (!mountedRef.current) return;
+        setPollEnabled(true);
+        pollTimeoutRef.current = setTimeout(() => {
+          if (!mountedRef.current) return;
+          setPollEnabled(false);
+          show({ tone: 'info', title: t('mentee.booking.payment_processing') });
+          router.replace(`/(mentee)/bookings/${sid}` as never);
+        }, 30_000);
+      } else if (error.code !== 'Canceled') {
+        setPaymentDeclined({ code: error.code, message: error.message });
+      }
+    } catch (err) {
+      setPresentLoading(false);
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      if (detail?.includes('onboarding incomplete')) {
+        setSheetInitError(t('mentee.booking.error_no_stripe'));
+      } else {
+        show({ tone: 'error', title: detail ?? t('common.error') });
+      }
+    }
   }
 
   const STEP_TITLES = [
     t('mentee.booking.step_slot'),
     t('mentee.booking.step_agenda'),
     t('mentee.booking.step_review'),
-    t('mentee.booking.step_payment'),
   ];
+
+  const navigation = useNavigation();
+  useFocusEffect(
+    useCallback(() => {
+      navigation.getParent()?.setOptions({ tabBarStyle: { display: 'none' } });
+      return () => navigation.getParent()?.setOptions({ tabBarStyle: undefined });
+    }, [navigation])
+  );
 
   return (
     <View className="flex-1 bg-cream">
@@ -160,7 +173,7 @@ export default function BookScreen() {
         title={t('mentee.booking.title')}
         right={
           <TouchableOpacity onPress={async () => {
-            if (sessionId && step === 3) {
+            if (sessionId) {
               await cancelSession.mutateAsync({ sessionId, body: {} }).catch(() => {});
             }
             router.back();
@@ -173,8 +186,8 @@ export default function BookScreen() {
       {/* Step header */}
       <View style={{ position: 'absolute', left: 0, right: 0, top: insets.top + 58, paddingHorizontal: 20 }}>
         <View className="flex-row items-center justify-between">
-          <Text className="text-[11px] uppercase tracking-wider text-ink/50 font-semibold">Стъпка {step + 1}/4</Text>
-          <StepDots total={4} current={step} />
+          <Text className="text-[11px] uppercase tracking-wider text-ink/50 font-semibold">{t('mentee.booking.step_counter', { current: step + 1, total: 3 })}</Text>
+          <StepDots total={3} current={step} />
         </View>
         <Text className="mt-2 text-[20px] font-light tracking-tight text-ink">{STEP_TITLES[step]}</Text>
       </View>
@@ -216,7 +229,7 @@ export default function BookScreen() {
             </View>
             <MCard className="mt-4 p-3.5 flex-row gap-2.5 bg-cream border-line">
               <View className="flex-1">
-                <Text className="text-[12px] text-ink/70">Детайлното описание помага на ментора да се подготви по-добре за сесията.</Text>
+                <Text className="text-[12px] text-ink/70">{t('mentee.booking.notes_hint')}</Text>
               </View>
             </MCard>
           </View>
@@ -236,13 +249,13 @@ export default function BookScreen() {
               </View>
               <View className="flex-row gap-2 mt-3">
                 <View className="flex-1 rounded-xl bg-cream p-2.5">
-                  <Text className="text-[10px] uppercase tracking-wider text-ink/45 font-semibold">Дата</Text>
+                  <Text className="text-[10px] uppercase tracking-wider text-ink/45 font-semibold">{t('mentee.booking.date_label')}</Text>
                   <Text className="text-[12.5px] font-semibold text-ink mt-0.5">
                     {new Date(selectedSlot.start).toLocaleDateString('bg-BG', { day: 'numeric', month: 'long' })}
                   </Text>
                 </View>
                 <View className="flex-1 rounded-xl bg-cream p-2.5">
-                  <Text className="text-[10px] uppercase tracking-wider text-ink/45 font-semibold">Час</Text>
+                  <Text className="text-[10px] uppercase tracking-wider text-ink/45 font-semibold">{t('mentee.booking.time_label')}</Text>
                   <Text className="text-[12.5px] font-semibold text-ink mt-0.5">
                     {new Date(selectedSlot.start).toLocaleTimeString('bg-BG', { hour: '2-digit', minute: '2-digit' })}
                   </Text>
@@ -250,45 +263,40 @@ export default function BookScreen() {
               </View>
             </MCard>
             <MCard className="mt-3 p-4">
-              <Eyebrow>Тема</Eyebrow>
+              <Eyebrow>{t('mentee.booking.review_topic_label')}</Eyebrow>
               <Text className="text-[14px] font-semibold text-ink mt-1">{topic}</Text>
               {notes && <Text className="text-[12.5px] text-ink/60 mt-1" numberOfLines={2}>{notes}</Text>}
-              <TouchableOpacity onPress={() => setStep(1)}><Text className="text-[12px] font-semibold text-purple-deep mt-2">Редактирай</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => setStep(1)}><Text className="text-[12px] font-semibold text-purple-deep mt-2">{t('mentee.booking.edit')}</Text></TouchableOpacity>
             </MCard>
             <MCard className="mt-3 p-4">
               <Eyebrow>Цена</Eyebrow>
               <View className="flex-row justify-between mt-2">
-                <Text className="text-[13px] text-ink/70 font-semibold">Сесия</Text>
+                <Text className="text-[13px] text-ink/70 font-semibold">{t('mentee.booking.session_label')}</Text>
                 <Text className="text-[13px] text-ink/70">€{price.toFixed(2)}</Text>
               </View>
               <View className="flex-row justify-between mt-1">
-                <Text className="text-[13px] text-emerald-700 font-semibold">Отстъпка 90%</Text>
+                <Text className="text-[13px] text-emerald-700 font-semibold">{t('mentee.booking.discount_label')}</Text>
                 <Text className="text-[13px] text-emerald-700">−€{(price - sessionPrice).toFixed(2)}</Text>
               </View>
               <View className="h-px bg-line my-2" />
               <View className="flex-row justify-between">
-                <Text className="text-[14px] font-semibold text-ink">Общо</Text>
+                <Text className="text-[14px] font-semibold text-ink">{t('mentee.booking.total_label')}</Text>
                 <Text className="text-[18px] font-bold text-ink">€{sessionPrice.toFixed(2)}</Text>
               </View>
             </MCard>
-          </View>
-        )}
-
-        {step === 3 && (
-          <View>
             {paymentDeclined && (
-              <MCard className="p-4 bg-rose-50 border-rose-200 mb-4">
+              <MCard className="p-4 bg-rose-50 border-rose-200 mt-3">
                 <Text className="text-[14px] font-semibold text-coral">{t('mentee.booking.card_declined')}</Text>
                 <Text className="text-[12px] text-coral/80 mt-1">{paymentDeclined.message}</Text>
                 <Text className="font-mono text-[10.5px] text-coral/60 mt-1">stripe_error: {paymentDeclined.code}</Text>
               </MCard>
             )}
             {sheetInitError && (
-              <MCard className="p-4 bg-rose-50 border-rose-200 mb-4">
+              <MCard className="p-4 bg-rose-50 border-rose-200 mt-3">
                 <Text className="text-[13px] text-coral">{sheetInitError}</Text>
               </MCard>
             )}
-            <View className="flex-row items-center justify-between p-3 rounded-xl bg-white border border-line mt-2">
+            <View className="flex-row items-center justify-between p-3 rounded-xl bg-white border border-line mt-3">
               <Text className="text-[11.5px] text-ink/65">🛡 {t('mentee.booking.payment_secured')}</Text>
               <Text style={{ fontSize: 10, fontWeight: '700', color: '#635BFF' }}>stripe</Text>
             </View>
@@ -314,32 +322,27 @@ export default function BookScreen() {
         )}
         {step === 2 && (
           <View className="flex-row gap-2">
-            <TouchableOpacity onPress={() => setStep(1)} className="px-4 py-3.5 rounded-2xl border border-line-strong items-center justify-center">
+            <TouchableOpacity
+              onPress={() => {
+                setPaymentDeclined(null);
+                setSheetInitError(null);
+                setSheetReady(false);
+                setStep(1);
+              }}
+              className="px-4 py-3.5 rounded-2xl border border-line-strong items-center justify-center"
+            >
               <Text className="font-semibold text-ink text-[14px]">{t('mentee.booking.back')}</Text>
             </TouchableOpacity>
-            <CTA
-              label={t('mentee.booking.pay_cta', { amount: sessionPrice.toFixed(2) })}
-              onPress={handleGoToPayment}
-              loading={createSession.isPending}
-              style={{ flex: 1 }}
-            />
-          </View>
-        )}
-        {step === 3 && (
-          !sheetReady && !sheetInitError ? (
-            <View className="items-center py-3">
-              <ActivityIndicator color="#3E1D87" />
-            </View>
-          ) : (
             <CTA
               label={paymentDeclined
                 ? t('mentee.booking.retry_cta', { amount: sessionPrice.toFixed(2) })
                 : t('mentee.booking.pay_cta', { amount: sessionPrice.toFixed(2) })}
-              onPress={paymentDeclined ? handleRetry : handlePresent}
+              onPress={handlePay}
               loading={presentLoading}
               disabled={!!sheetInitError}
+              style={{ flex: 1 }}
             />
-          )
+          </View>
         )}
       </View>
     </View>

@@ -1,6 +1,7 @@
+import { useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, useFocusEffect, useNavigation } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { X, CheckCircle, Video } from 'lucide-react-native';
 import { AppHeader } from '../../../src/components/ui/AppHeader';
@@ -18,6 +19,14 @@ export default function SessionConfirmationScreen() {
   const { data: session } = useSession(sessionId);
   const { data: mentor } = useMentor(session?.mentor_id ?? '');
 
+  const navigation = useNavigation();
+  useFocusEffect(
+    useCallback(() => {
+      navigation.getParent()?.setOptions({ tabBarStyle: { display: 'none' } });
+      return () => navigation.getParent()?.setOptions({ tabBarStyle: undefined });
+    }, [navigation])
+  );
+
   if (!session) return null;
 
   const start = new Date(session.scheduled_start);
@@ -26,8 +35,10 @@ export default function SessionConfirmationScreen() {
 
   function formatCountdown(mins: number): string {
     const clamped = Math.max(0, mins);
-    const h = Math.floor(clamped / 60);
+    const d = Math.floor(clamped / 1440);
+    const h = Math.floor((clamped % 1440) / 60);
     const m = Math.floor(clamped % 60);
+    if (d > 0) return h > 0 ? `${d}${t('common.days')} ${h}${t('common.hours')}` : `${d}${t('common.days')}`;
     return h > 0 ? `${h}${t('common.hours')} ${m}${t('common.min')}` : `${m}${t('common.min')}`;
   }
 

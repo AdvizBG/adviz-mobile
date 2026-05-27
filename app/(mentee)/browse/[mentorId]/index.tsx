@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, useFocusEffect, useNavigation } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Star, Share2 } from 'lucide-react-native';
 import { useNetInfo } from '@react-native-community/netinfo';
@@ -12,7 +12,8 @@ import { TopicChip } from '../../../../src/components/ui/TopicChip';
 import { CTA } from '../../../../src/components/ui/CTA';
 import { useMentor } from '../../../../src/features/Mentors/api/hooks';
 
-function initials(name: string): string {
+function initials(name: string | undefined): string {
+  if (!name) return '';
   return name.split(' ').filter(Boolean).map((n) => n[0]).slice(0, 2).join('').toUpperCase();
 }
 
@@ -24,6 +25,14 @@ export default function MentorProfileScreen() {
   const [aboutExpanded, setAboutExpanded] = useState(false);
   const netInfo = useNetInfo();
   const isOffline = netInfo.isConnected === false;
+  const navigation = useNavigation();
+
+  useFocusEffect(
+    useCallback(() => {
+      navigation.getParent()?.setOptions({ tabBarStyle: { display: 'none' } });
+      return () => navigation.getParent()?.setOptions({ tabBarStyle: undefined });
+    }, [navigation])
+  );
 
   if (isError) {
     return (
@@ -85,10 +94,10 @@ export default function MentorProfileScreen() {
 
         {/* About */}
         <View className="mt-4">
-          <Eyebrow>За ментора</Eyebrow>
+          <Eyebrow>{t('mentee.mentor_profile.about')}</Eyebrow>
           <Text className="text-[13.5px] text-ink/75 leading-relaxed mt-1" numberOfLines={aboutExpanded ? undefined : 4}>{mentor.about}</Text>
           <TouchableOpacity onPress={() => setAboutExpanded(!aboutExpanded)}>
-            <Text className="text-[12px] font-semibold text-purple-deep mt-1">{aboutExpanded ? 'Скрий' : t('mentee.mentor_profile.show_more')}</Text>
+            <Text className="text-[12px] font-semibold text-purple-deep mt-1">{aboutExpanded ? t('mentee.mentor_profile.show_less') : t('mentee.mentor_profile.show_more')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -113,7 +122,7 @@ export default function MentorProfileScreen() {
       {/* Sticky CTA */}
       <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 14, paddingBottom: insets.bottom + 14, borderTopWidth: 1, borderTopColor: '#ECE9E2', backgroundColor: 'white', flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <View>
-          <Text className="text-[10.5px] uppercase tracking-wider text-ink/55 font-semibold">60 мин. · Първа сесия</Text>
+          <Text className="text-[10.5px] uppercase tracking-wider text-ink/55 font-semibold">60 мин. · {t('mentee.mentor_profile.first_session')}</Text>
           <View className="flex-row items-center gap-1.5">
             <Text className="text-[18px] font-bold text-ink">€{firstSessionPrice}</Text>
             <Text className="text-[12px] text-ink/40 line-through">€{price.toFixed(0)}</Text>

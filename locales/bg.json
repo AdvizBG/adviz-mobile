@@ -56,6 +56,7 @@
       "per_hour": "/ час",
       "about": "За ментора",
       "show_more": "Виж повече",
+      "show_less": "Скрий",
       "works_on": "Работи с",
       "reviews": "Отзиви",
       "all_reviews": "Виж всички",
@@ -65,6 +66,7 @@
     },
     "booking": {
       "title": "Запази час",
+      "step_counter": "Стъпка {{current}}/{{total}}",
       "step_slot": "Избери час",
       "step_agenda": "Тема",
       "step_review": "Преглед",
@@ -74,9 +76,18 @@
       "topic_label": "Тема на сесията",
       "topic_placeholder": "Какво искаш да постигнеш?",
       "notes_label": "Бележки (по желание)",
+      "notes_hint": "Детайлното описание помага на ментора да се подготви по-добре за сесията.",
+      "available_slots": "Свободни часове",
+      "date_label": "Дата",
+      "time_label": "Час",
+      "review_topic_label": "Тема",
+      "edit": "Редактирай",
+      "session_label": "Сесия",
+      "discount_label": "Отстъпка 90%",
+      "total_label": "Общо",
       "back": "Назад",
       "continue": "Напред",
-      "pay_cta": "Потвърди · €{{amount}}",
+      "pay_cta": "Плати · €{{amount}}",
       "retry_cta": "Опитай отново · €{{amount}}",
       "payment_secured": "Плащането е защитено",
       "payment_secured_by": "от",
@@ -88,7 +99,8 @@
       "card_declined": "Картата отказа транзакцията",
       "slot_hold": "Резервираният час се задържа {{minutes}} мин.",
       "payment_processing": "Плащането се обработва",
-      "session_confirmed": "Сесията е потвърдена"
+      "session_confirmed": "Сесията е потвърдена",
+      "error_no_stripe": "Менторът не е настроил плащанията си в Stripe"
     },
     "bookings": {
       "title": "Резервации",
@@ -101,7 +113,7 @@
       "link_unlocks": "Линкът отваря след {{time}}",
       "cancel": "Отмени",
       "keep": "Запази сесията",
-      "cancel_title": "Отмени до {{hours}}ч?",
+      "cancel_title": "Отмени до {{time}}?",
       "refund_breakdown": "Разбивка на възстановяването",
       "cancel_cta": "Да, отмени · −€{{amount}}",
       "cancelled_toast": "Сесията е отменена",
@@ -168,8 +180,10 @@
       "end": "Приключи",
       "details": "Детайли",
       "empty_title": "Графикът ти е свободен!",
-      "empty_subtitle": "Сподели профила си и привлечи ментии",
-      "copy_link": "Копирай"
+      "empty_subtitle": "Сподели профила си и привлечи клиенти",
+      "copy_link": "Копирай",
+      "link_copied": "Копирано!",
+      "action_error": "Грешка при действието"
     },
     "profile": {
       "title": "Профил",
@@ -183,7 +197,7 @@
       "you_earn": "Ти получаваш",
       "fee_note": "10% такса платформа",
       "visibility": "Видимост",
-      "switch_mentee": "Превключи към менти / Switch to mentee view",
+      "switch_mentee": "Превключи към клиентски изглед",
       "unsaved_title": "Запази промените?",
       "unsaved_save": "Запази и излез",
       "unsaved_keep": "Продължи редакцията",
@@ -199,6 +213,7 @@
     "close": "Затвори",
     "today": "Днес",
     "min": "мин",
-    "hours": "ч"
+    "hours": "ч",
+    "days": "д"
   }
 }
