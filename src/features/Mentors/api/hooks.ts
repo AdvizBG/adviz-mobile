@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../lib/api';
-import type { MentorProfileRead, MentorProfileUpdate, SlotRead, MentorListParams, ScheduleRead, ScheduleUpdate } from '../../../lib/types';
+import type { MentorProfileRead, MentorProfileUpdate, MentorListResponse, SlotRead, MentorListParams, ScheduleRead, ScheduleUpdate } from '../../../lib/types';
 
 const MENTORS_PAGE_SIZE = 10;
 
@@ -17,8 +17,11 @@ export function useMentors(params: MentorListParams) {
   return useInfiniteQuery({
     queryKey: mentorKeys.list(params),
     queryFn: ({ pageParam = 1 }) =>
-      api.get<MentorProfileRead[]>('/mentors/', { params: { ...params, page: pageParam } }).then((r) => r.data),
-    getNextPageParam: (lastPage, allPages) => lastPage.length === MENTORS_PAGE_SIZE ? allPages.length + 1 : undefined,
+      api.get<MentorListResponse>('/mentors/', { params: { ...params, page: pageParam } }).then((r) => r.data),
+    getNextPageParam: (lastPage, allPages) => {
+      const fetched = allPages.reduce((sum, p) => sum + p.items.length, 0);
+      return fetched < lastPage.total ? allPages.length + 1 : undefined;
+    },
     initialPageParam: 1,
     staleTime: 30_000,
   });
@@ -30,6 +33,15 @@ export function useMentor(id: string) {
     queryFn: () => api.get<MentorProfileRead>(`/mentors/${id}`).then((r) => r.data),
     staleTime: 60_000,
     enabled: !!id,
+  });
+}
+
+export function useMentorByUserId(userId: string) {
+  return useQuery({
+    queryKey: mentorKeys.detail(`user:${userId}`),
+    queryFn: () => api.get<MentorProfileRead>(`/mentors/by-user/${userId}`).then((r) => r.data),
+    staleTime: 60_000,
+    enabled: !!userId,
   });
 }
 

@@ -99,6 +99,7 @@
       "card_declined": "Картата отказа транзакцията",
       "slot_hold": "Резервираният час се задържа {{minutes}} мин.",
       "payment_processing": "Плащането се обработва",
+      "payment_processing_hint": "Изчакай потвърждение от Stripe. Обикновено отнема секунди.",
       "session_confirmed": "Сесията е потвърдена",
       "error_no_stripe": "Менторът не е настроил плащанията си в Stripe"
     },

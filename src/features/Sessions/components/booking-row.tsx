@@ -2,16 +2,18 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { MCard } from '../../../components/ui/MCard';
 import { SessionBadge } from '../../../components/ui/SessionBadge';
 import { MAvatar } from '../../../components/ui/MAvatar';
+import { useMentorByUserId } from '../../Mentors/api/hooks';
 import type { SessionRead } from '../../../lib/types';
 
 interface BookingRowProps {
   session: SessionRead;
-  mentorName: string;
   onPrimary: () => void;
   onCancel?: () => void;
 }
 
-export function BookingRow({ session, mentorName, onPrimary, onCancel }: BookingRowProps) {
+export function BookingRow({ session, onPrimary, onCancel }: BookingRowProps) {
+  const { data: mentor } = useMentorByUserId(session.mentor_id);
+  const mentorName = mentor?.full_name ?? '…';
   const start = new Date(session.scheduled_start);
   const timeLabel = start.toLocaleTimeString('bg-BG', { hour: '2-digit', minute: '2-digit' });
   const duration = Math.round((new Date(session.scheduled_end).getTime() - start.getTime()) / 60_000);
@@ -21,7 +23,7 @@ export function BookingRow({ session, mentorName, onPrimary, onCancel }: Booking
 
   return (
     <MCard className="p-3.5 mt-2 flex-row gap-3">
-      <MAvatar initials={mentorName.split(' ').map((n) => n[0]).join('').slice(0, 2)} color="#CBCBFF" size={44} />
+      <MAvatar initials={mentor?.avatar_initials ?? mentorName.slice(0, 2)} color={mentor?.avatar_color ?? '#CBCBFF'} size={44} />
       <View className="flex-1">
         <View className="flex-row items-center justify-between">
           <SessionBadge status={session.status} />

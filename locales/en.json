@@ -99,6 +99,7 @@
       "card_declined": "Your card was declined",
       "slot_hold": "Your slot is held for {{minutes}} min.",
       "payment_processing": "Payment is processing",
+      "payment_processing_hint": "Waiting for confirmation from Stripe. This usually takes a few seconds.",
       "session_confirmed": "Session confirmed!",
       "error_no_stripe": "This mentor hasn't set up payments yet"
     },

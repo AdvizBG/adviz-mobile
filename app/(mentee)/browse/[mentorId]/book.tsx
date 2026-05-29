@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router, useFocusEffect, useNavigation } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -65,7 +65,7 @@ export default function BookScreen() {
   const price = mentor ? (parseFloat(mentor.hourly_price_eur) || 0) : 0;
   const sessionPrice = Math.round(price * 0.1 * 100) / 100;
 
-  const CONTENT_TOP = insets.top + 110 + 86;
+  const CONTENT_TOP = insets.top + 110 + 32;
   const CTA_BOTTOM = insets.bottom + 83 + 60;
 
   async function handlePay() {
@@ -303,6 +303,18 @@ export default function BookScreen() {
           </View>
         )}
       </ScrollView>
+
+      {pollEnabled && (
+        <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(250,247,242,0.95)', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+          <ActivityIndicator size="large" color="#3E1D87" />
+          <Text style={{ marginTop: 16, fontSize: 16, fontWeight: '600', color: '#1B1B43', textAlign: 'center' }}>
+            {t('mentee.booking.payment_processing')}
+          </Text>
+          <Text style={{ marginTop: 6, fontSize: 13, color: 'rgba(27,27,67,0.5)', textAlign: 'center', maxWidth: 240 }}>
+            {t('mentee.booking.payment_processing_hint')}
+          </Text>
+        </View>
+      )}
 
       {/* CTA bar */}
       <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 12, paddingBottom: insets.bottom + 16, backgroundColor: '#FAF7F2', borderTopWidth: 1, borderTopColor: '#ECE9E2' }}>

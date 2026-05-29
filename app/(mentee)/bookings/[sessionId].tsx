@@ -10,14 +10,14 @@ import { Eyebrow } from '../../../src/components/ui/Eyebrow';
 import { CTA } from '../../../src/components/ui/CTA';
 import { MAvatar } from '../../../src/components/ui/MAvatar';
 import { useSession } from '../../../src/features/Sessions/api/hooks';
-import { useMentor } from '../../../src/features/Mentors/api/hooks';
+import { useMentorByUserId } from '../../../src/features/Mentors/api/hooks';
 
 export default function SessionConfirmationScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const { data: session } = useSession(sessionId);
-  const { data: mentor } = useMentor(session?.mentor_id ?? '');
+  const { data: mentor } = useMentorByUserId(session?.mentor_id ?? '');
 
   const navigation = useNavigation();
   useFocusEffect(
