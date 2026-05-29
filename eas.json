@@ -7,6 +7,11 @@
       "env": { "EXPO_PUBLIC_API_URL": "http://localhost:80" }
     },
     "preview": { "distribution": "internal" },
-    "production": {}
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.adviz.bg",
+        "EXPO_PUBLIC_STRIPE_KEY": "pk_test_51TcN2y4Qu2K4WnrSESGnCgnH2NvaZyg2JTYjCjF7e2kpyGGnmeAEUbRkmcLqwKXYiHjh7j243Nwg0acybiUXSGL000TxlbBXUu"
+      }
+    }
   }
 }
