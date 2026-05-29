@@ -7,6 +7,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -77,6 +78,11 @@ export default function LoginScreen() {
             paddingBottom: 24,
           }}
         >
+          <Image
+            source={require('../../assets/adviz-logo.png')}
+            style={{ width: 64, height: 64, marginBottom: 10 }}
+            resizeMode="contain"
+          />
           <Text
             style={{
               fontFamily: 'InriaSans_400Regular',
@@ -85,7 +91,7 @@ export default function LoginScreen() {
               color: '#1B1B43',
             }}
           >
-            adviz
+            Adviz
           </Text>
           <Text className="text-[13px] text-ink/55 mt-1">
             Намери своя ментор / Find your mentor

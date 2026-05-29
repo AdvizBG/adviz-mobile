@@ -1,4 +1,4 @@
-import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -34,6 +34,11 @@ export default function RegisterScreen() {
           </TouchableOpacity>
         } />
         <ScrollView contentContainerStyle={{ paddingTop: 116, paddingHorizontal: 24, paddingBottom: insets.bottom + 24 }}>
+          <Image
+            source={require('../../assets/adviz-logo.png')}
+            style={{ width: 36, height: 36, marginBottom: 16 }}
+            resizeMode="contain"
+          />
           <Text className="text-[28px] font-light tracking-tight text-ink leading-[1.1]">{t('auth.register.title')}</Text>
           <Text className="text-[13.5px] text-ink/55 mt-2 max-w-[300px]">{t('auth.register.subtitle')}</Text>
 

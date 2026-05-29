@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, ScrollView, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Search, SlidersHorizontal } from 'lucide-react-native';
@@ -28,7 +28,7 @@ export default function BrowseScreen() {
   const isOffline = netInfo.isConnected === false;
 
   const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } = useMentors(queryParams);
-  const mentors = data?.pages.flat() ?? [];
+  const mentors = data?.pages.flatMap((p) => p.items) ?? [];
 
   const HEADER_HEIGHT = insets.top + 58 + 52 + 40;
   const TAB_BAR_HEIGHT = 49 + (insets.bottom > 0 ? insets.bottom : 8);
@@ -56,16 +56,16 @@ export default function BrowseScreen() {
             <Text className="text-[11px] font-semibold text-white">{t('mentee.browse.filter')}</Text>
           </TouchableOpacity>
         </View>
-        <FlatList
+        <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          data={CATEGORIES}
-          keyExtractor={(item) => item}
           contentContainerStyle={{ gap: 6, marginTop: 8 }}
-          renderItem={({ item }) => {
+        >
+          {CATEGORIES.map((item) => {
             const active = item === activeCategory;
             return (
               <TouchableOpacity
+                key={item}
                 onPress={() => setActiveCategory(item)}
                 style={{
                   paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
@@ -77,8 +77,8 @@ export default function BrowseScreen() {
                 <Text style={{ fontSize: 12, fontWeight: '500', color: active ? 'white' : 'rgba(27,27,67,0.7)' }}>{item}</Text>
               </TouchableOpacity>
             );
-          }}
-        />
+          })}
+        </ScrollView>
       </View>
 
       {isOffline && (

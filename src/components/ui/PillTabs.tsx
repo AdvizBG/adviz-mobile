@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { cn } from '../../lib/cn';
 
 interface Tab {
@@ -19,7 +19,7 @@ export function PillTabs({ tabs, activeKey, onSelect }: PillTabsProps) {
       {tabs.map((tab) => {
         const active = tab.key === activeKey;
         return (
-          <TouchableOpacity
+          <Pressable
             key={tab.key}
             onPress={() => onSelect(tab.key)}
             className={cn('flex-1 items-center py-2 rounded-full', active ? 'bg-white shadow-sm' : '')}
@@ -28,7 +28,7 @@ export function PillTabs({ tabs, activeKey, onSelect }: PillTabsProps) {
               {tab.label}
               {tab.count !== undefined ? ` ${tab.count}` : ''}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         );
       })}
     </View>

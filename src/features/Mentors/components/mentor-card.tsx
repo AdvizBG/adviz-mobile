@@ -18,7 +18,8 @@ interface MentorCardProps {
 
 export const MentorCard = React.memo(function MentorCard({ mentor, isOnlineToday, testID }: MentorCardProps) {
   const name = mentor.full_name || mentor.headline || 'Mentor';
-  const price = parseFloat(mentor.hourly_price_eur).toFixed(0);
+  const priceNum = parseFloat(mentor.hourly_price_eur);
+  const price = isNaN(priceNum) ? '—' : priceNum.toFixed(0);
   const avatarUri = `https://i.pravatar.cc/100?u=${mentor.id}`;
   return (
     <TouchableOpacity testID={testID} onPress={() => router.push(`/(mentee)/browse/${mentor.id}` as never)}>
@@ -42,7 +43,7 @@ export const MentorCard = React.memo(function MentorCard({ mentor, isOnlineToday
             {isOnlineToday && <Text className="text-[11px] text-emerald-700 font-medium">· Днес</Text>}
           </View>
           <View className="flex-row gap-1 mt-2 flex-wrap">
-            {mentor.topics.slice(0, 3).map((t) => (
+            {(mentor.topics ?? []).slice(0, 3).map((t) => (
               <View key={t} className="px-2 py-0.5 rounded-full bg-purple-100">
                 <Text className="text-[10.5px] font-medium text-purple-deep">{t}</Text>
               </View>

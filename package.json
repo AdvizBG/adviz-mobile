@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
-    "start": "expo start",
-    "android": "expo run:android",
+    "adb-reverse": "adb reverse tcp:8081 tcp:8081 && adb reverse tcp:19000 tcp:19000 && adb reverse tcp:19001 tcp:19001",
+    "start": "npm run adb-reverse; expo start --localhost",
+    "android": "npm run adb-reverse && expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
     "test:e2e:ios": "detox test --configuration ios.debug",

@@ -81,6 +81,16 @@ export interface MentorProfileRead {
   total_sessions: number;
   avg_rating: number | null;
   since: string;
+  experience_years: number;
+  title: string;
+  avatar_initials: string;
+  avatar_color: string;
+  is_available_today: boolean;
+}
+
+export interface MentorListResponse {
+  items: MentorProfileRead[];
+  total: number;
 }
 
 export interface MentorProfileUpdate {

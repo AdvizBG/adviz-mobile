@@ -63,23 +63,37 @@ export function CancelSheet({ session, visible, onDismiss }: CancelSheetProps) {
               {t('mentee.bookings.cancel_title', { time: formatTimeUntil(hoursUntil) })}
             </Text>
           )}
-          <MCard className="mt-3 p-4 bg-cream border-line">
-            <View className="flex-row justify-between">
-              <Text className="text-[12px] text-ink/70">Платено</Text>
-              <Text className="text-[12px] text-ink">€{price.toFixed(2)}</Text>
-            </View>
-            {isLate && (
-              <View className="flex-row justify-between mt-1">
-                <Text className="text-[12px] text-amber-700 font-semibold">Такса за късна отмяна (50%)</Text>
-                <Text className="text-[12px] text-amber-700">−€{fee.toFixed(2)}</Text>
+          {isAlreadyStarted ? (
+            <MCard className="mt-3 p-4 bg-cream border-line">
+              <View className="flex-row justify-between">
+                <Text className="text-[12px] text-ink/70">Платено</Text>
+                <Text className="text-[12px] text-ink">€{price.toFixed(2)}</Text>
               </View>
-            )}
-            <View className="h-px bg-line my-2" />
-            <View className="flex-row justify-between">
-              <Text className="text-[12px] text-emerald-700 font-semibold">Възстановяване</Text>
-              <Text className="text-[12px] text-emerald-700 font-semibold">€{refund.toFixed(2)}</Text>
-            </View>
-          </MCard>
+              <View className="h-px bg-line my-2" />
+              <View className="flex-row justify-between">
+                <Text className="text-[12px] text-red-600 font-semibold">Възстановяване</Text>
+                <Text className="text-[12px] text-red-600 font-semibold">€0.00</Text>
+              </View>
+            </MCard>
+          ) : (
+            <MCard className="mt-3 p-4 bg-cream border-line">
+              <View className="flex-row justify-between">
+                <Text className="text-[12px] text-ink/70">Платено</Text>
+                <Text className="text-[12px] text-ink">€{price.toFixed(2)}</Text>
+              </View>
+              {isLate && (
+                <View className="flex-row justify-between mt-1">
+                  <Text className="text-[12px] text-amber-700 font-semibold">Такса за късна отмяна (50%)</Text>
+                  <Text className="text-[12px] text-amber-700">−€{fee.toFixed(2)}</Text>
+                </View>
+              )}
+              <View className="h-px bg-line my-2" />
+              <View className="flex-row justify-between">
+                <Text className="text-[12px] text-emerald-700 font-semibold">Възстановяване</Text>
+                <Text className="text-[12px] text-emerald-700 font-semibold">€{refund.toFixed(2)}</Text>
+              </View>
+            </MCard>
+          )}
           <CTA
             label={t('mentee.bookings.cancel_cta', { amount: fee.toFixed(2) })}
             onPress={handleCancel}
