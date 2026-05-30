@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../lib/api';
+import { useAuthStore } from '../../../store/auth';
 import type {
   SessionRead, SessionCreate, SessionCancel,
   ReviewCreate, ReviewRead, PaymentIntentResponse,
@@ -42,10 +43,11 @@ export function useSessionPaidStatus(sessionId: string, enabled: boolean) {
 
 export function useCreateSession() {
   const queryClient = useQueryClient();
+  const userId = useAuthStore((s) => s.user?.id);
   return useMutation({
     mutationFn: (data: SessionCreate) =>
       api.post<SessionRead>('/sessions/', data, {
-        headers: { 'Idempotency-Key': `${data.mentor_id}-${data.scheduled_start}` },
+        headers: { 'Idempotency-Key': `${userId}-${data.mentor_id}-${data.scheduled_start}` },
       }).then((r) => r.data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: sessionKeys.mine() }),
   });
